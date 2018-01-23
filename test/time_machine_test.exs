@@ -24,6 +24,23 @@ defmodule CompilerTest do
     div "test #{@val}"
   end
 
+  fragment :test_fragment do
+    div 1
+    div 1.1
+    div @num
+    div @num + 0.5
+  end
+
+  template :test_inner_fragment do
+    num = 1
+    fragment do
+      div num
+      div num + 0.1
+      div @num
+      div @num + 0.5
+    end
+  end
+
   test "elements" do
     assert (div "one") == %E{tag: :div, content: "one"}
     assert (div [lala: 1234], "one") == %E{tag: :div, content: "one", attrs: [lala: 1234]}
@@ -44,5 +61,12 @@ defmodule CompilerTest do
       div [lala: 1234, wewe: "lol"], "one"
       div "two"
     end) |> to_js() == "h('div',h('div',{lala:1234,wewe:'lol'},'one'),h('div','two'))"
+
+    # top-level template/fragment w/ variable interpolation
+    assert (test_template([val: 1234])) |> to_js() == "() => h('div','test 1234')"
+    assert (test_fragment([num: 11])) |> to_js() == "() => [h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
+
+    # inner fragments
+    # assert (test_inner_fragment([num: 11])) |> to_js() == "() => [h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
   end
 end
