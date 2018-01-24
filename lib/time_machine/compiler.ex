@@ -43,12 +43,14 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_fragment, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
   end
-
   def to_ast(%Element{tag: :_template, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
   end
   def to_ast(%Element{tag: :_component, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
+  end
+  def to_ast(%Element{tag: :_panel, content: content}) do
+    J.arrow_function_expression([J.identifier(:d)], [], to_ast(content))
   end
 
   def to_ast(value) when is_literal(value) do
