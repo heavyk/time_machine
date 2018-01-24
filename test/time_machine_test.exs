@@ -20,24 +20,24 @@ defmodule CompilerTest do
     elements: Elements
   import Elements
 
-  template :test_template do
+  template :tpl_test do
     div "test #{@val}"
   end
 
-  fragment :test_fragment do
+  fragment :frag_test do
     div 1
     div 1.1
     div @num
-    div @num + 0.5
+    div @num + 0.1
   end
 
-  template :test_inner_fragment do
+  template :tpl_inner_frag do
     num = 1
     fragment do
       div num
       div num + 0.1
       div @num
-      div @num + 0.5
+      div @num + 0.1
     end
   end
 
@@ -47,7 +47,18 @@ defmodule CompilerTest do
   end
 
   test "templates" do
-    assert (test_template([val: 1234])) == %E{tag: :div, content: "test 1234"}
+    assert (tpl_test([val: 1234])) == %E{tag: :_template,
+                                         content: %E{tag: :div,
+                                                     content: "test 1234"}}
+  end
+
+  test "fragments" do
+    assert (frag_test([num: 11])) == %E{tag: :_fragment, content: [
+        %E{tag: :div, content: 1},
+        %E{tag: :div, content: 1.1},
+        %E{tag: :div, content: 11},
+        %E{tag: :div, content: 11.1}
+      ]}
   end
 
   test "generate js" do
@@ -63,10 +74,15 @@ defmodule CompilerTest do
     end) |> to_js() == "h('div',h('div',{lala:1234,wewe:'lol'},'one'),h('div','two'))"
 
     # top-level template/fragment w/ variable interpolation
-    assert (test_template([val: 1234])) |> to_js() == "() => h('div','test 1234')"
-    assert (test_fragment([num: 11])) |> to_js() == "() => [h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
+    assert (tpl_test([val: 1234])) |> to_js() ==
+      "()=>h('div','test 1234')"
+    assert (frag_test([num: 11])) |> to_js() ==
+      "()=>[h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
 
     # inner fragments
-    # assert (test_inner_fragment([num: 11])) |> to_js() == "() => [h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
+    # TODO: although, the double functions is correct, one of them should be removed
+    assert (tpl_inner_frag([num: 11])) |> to_js() ==
+      "()=>()=>[h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
+
   end
 end

@@ -23,9 +23,9 @@ defmodule TimeMachine.Compiler do
     # value
   end
 
-  def compile(content) do
-    quote do: content
-  end
+  # def compile(content) do
+  #   quote do: unquote(content)
+  # end
 
   # convert to javascript
 
@@ -37,10 +37,18 @@ defmodule TimeMachine.Compiler do
 
   def to_ast(content) when is_list(content) do
     Enum.map(content, &to_ast/1)
+    |> J.array_expression()
   end
 
   def to_ast(%Element{tag: :_fragment, content: content}) do
-    J.array_expression(to_ast(content))
+    J.arrow_function_expression([], [], to_ast(content))
+  end
+
+  def to_ast(%Element{tag: :_template, content: content}) do
+    J.arrow_function_expression([], [], to_ast(content))
+  end
+  def to_ast(%Element{tag: :_component, content: content}) do
+    J.arrow_function_expression([], [], to_ast(content))
   end
 
   def to_ast(value) when is_literal(value) do
@@ -55,19 +63,25 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
     tag = J.literal(Atom.to_string(tag))
     args = if length(attrs) > 0, do: [tag, do_attrs(attrs)], else: [tag]
-    args = if not is_nil(content), do: args ++ List.wrap(to_ast(content)), else: args
+    args = if not is_nil(content), do: args ++ do_args(content), else: args
 
     J.call_expression(J.identifier(:h), args)
+  end
+
+  defp do_args(args) do
+    if is_list(args) do
+      Enum.map(args, &to_ast/1)
+    else
+      [to_ast(args)]
+    end
   end
 
   defp do_attrs(attrs) do
     J.object_pattern(do_attrs(attrs, []))
   end
-
   defp do_attrs([{key, value} | rest], acc) when is_literal(value) do
     do_attrs(rest, acc ++ [J.property(J.identifier(key), J.literal(value))])
   end
-
   defp do_attrs([], acc) do
     acc
   end

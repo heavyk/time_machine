@@ -1,3 +1,6 @@
+small-ish things:
+add opts to the compiler and store some basic state in it (like parent node and stuff)
+
 
 integrate into phoenix a simple html page, then compiles the template into js
 
