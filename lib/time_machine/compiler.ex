@@ -8,7 +8,7 @@ defmodule TimeMachine.Compiler do
 
   defdelegate generate(ast), to: ESTree.Tools.Generator
 
-  defguard is_literal(v) when is_binary(v) or is_number(v) or is_boolean(v) or is_nil(v)
+  defguard is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v)
 
   def compile(content) when is_list(content) do
     Enum.map(content, &compile/1)
@@ -79,10 +79,23 @@ defmodule TimeMachine.Compiler do
   end
 
   defp do_attrs(attrs) do
+    attrs = Enum.reduce(attrs, [], fn {k, v}, acc ->
+      {_, updated} = Keyword.get_and_update(acc, k, fn
+        nil -> {nil, v}
+        cur when is_list(cur) -> {cur, cur ++ [v]}
+        cur -> {cur, [cur, v]}
+      end)
+      updated
+    end)
+    attrs = :lists.reverse(attrs)
     J.object_pattern(do_attrs(attrs, []))
   end
   defp do_attrs([{key, value} | rest], acc) when is_literal(value) do
     do_attrs(rest, acc ++ [J.property(J.identifier(key), J.literal(value))])
+  end
+  defp do_attrs([{key, value} | rest], acc) do
+    value = to_ast(value)
+    do_attrs(rest, acc ++ [J.property(J.identifier(key), value)])
   end
   defp do_attrs([], acc) do
     acc

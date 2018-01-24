@@ -1,6 +1,9 @@
 small-ish things:
 add opts to the compiler and store some basic state in it (like parent node and stuff)
 
+when rendering h() check to see if there are classes/or an id, and render into the shorthand form
+eg. h('div',{id:'cool',c:['lala','hoho']}) -> h('div#cool.lala.hoho')
+
 
 integrate into phoenix a simple html page, then compiles the template into js
 

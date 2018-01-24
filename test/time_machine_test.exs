@@ -41,9 +41,26 @@ defmodule CompilerTest do
     end
   end
 
+  component :foto do
+    size = @size
+    size = cond do
+      size <= 150 -> :s
+      size <= 300 -> :m
+      size <= 600 -> :l
+      size <= 1200 -> :x
+    end
+    src = "/i/#{size}/#{@id}"
+    img src: src, title: @title, alt: @title
+  end
+
   test "elements" do
     assert (div "one") == %E{tag: :div, content: "one"}
     assert (div [lala: 1234], "one") == %E{tag: :div, content: "one", attrs: [lala: 1234]}
+    assert (div [a: 1, a: 2, a: 3, a: 4]) == %E{tag: :div, attrs: [a: 1, a: 2, a: 3, a: 4]}
+    assert ~h/div.c1/ == %E{tag: :div, attrs: [class: :c1]}
+    assert ~h/.c1/ == %E{tag: :div, attrs: [class: :c1]}
+    assert ~h/.c1.c2.c3/ == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3]}
+    assert ~h/.c1.c2.c3#id/ == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3, id: :id]}
   end
 
   test "templates" do
@@ -61,6 +78,15 @@ defmodule CompilerTest do
       ]}
   end
 
+  test "components" do
+    assert (foto size: 180, id: "lol", title: "an image") ==
+      %E{tag: :_component, content: %E{tag: :img, attrs: [src: "/i/m/lol",
+                                                          title: "an image",
+                                                          alt: "an image"]}}
+  end
+
+  # TODO: move these to a separate test module where the compiler is overridden
+  #       and automatically renders to js
   test "generate js" do
     assert (div "one") |> to_js() ==
         "h('div','one')"
@@ -84,5 +110,13 @@ defmodule CompilerTest do
     assert (tpl_inner_frag([num: 11])) |> to_js() ==
       "()=>()=>[h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
 
+    assert (foto size: 180, id: "lol", title: "an image") |> to_js() ==
+      "()=>h('img',{src:'/i/m/lol',title:'an image',alt:'an image'})"
+
+    # merges duplicated attrs into an array
+    assert (div [a: 1, a: 2, a: 3, a: 4]) |> to_js() == "h('div',{a:[1,2,3,4]})"
+
+    # output the element as its css selector to save attribute space
+    # assert ~h/.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
   end
 end
