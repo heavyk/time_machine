@@ -13,16 +13,13 @@ defmodule TimeMachine.Compiler do
   def compile(content) when is_list(content) do
     Enum.map(content, &compile/1)
   end
-
   def compile(%Element{tag: tag, attrs: attrs, content: content}) do
     quote do: %Element{tag: unquote(tag), attrs: unquote(attrs), content: unquote(content)}
   end
-
   def compile(value) do
     TimeMachine.Encoder.encode(value)
     # value
   end
-
   # def compile(content) do
   #   quote do: unquote(content)
   # end

@@ -7,18 +7,10 @@ defmodule TimeMachineTest do
   end
 end
 
-# this will be moved out to its own project as soon as it's all working
-defmodule CompilerTest do
-  use ExUnit.Case
-  doctest TimeMachine.Compiler
-
-  defp to_js(el), do: TimeMachine.Compiler.to_ast(el) |> ESTree.Tools.Generator.generate(false)
-
-  alias Marker.Element, as: E
+defmodule TestTemplates do
   use Marker,
     compiler: TimeMachine.Compiler,
-    elements: Elements
-  import Elements
+    elements: TimeMachine.Elements
 
   template :tpl_test do
     div "test #{@val}"
@@ -52,11 +44,29 @@ defmodule CompilerTest do
     src = "/i/#{size}/#{@id}"
     img src: src, title: @title, alt: @title
   end
+end
+
+# this will be moved out to its own project as soon as it's all working
+defmodule ElementsTest do
+  use ExUnit.Case
+  use Marker,
+    compiler: TimeMachine.Compiler,
+    elements: TimeMachine.Elements
+
+  import TestTemplates
+  alias Marker.Element, as: E
+
+  doctest TimeMachine.Elements
 
   test "elements" do
     assert (div "one") == %E{tag: :div, content: "one"}
     assert (div [lala: 1234], "one") == %E{tag: :div, content: "one", attrs: [lala: 1234]}
     assert (div [a: 1, a: 2, a: 3, a: 4]) == %E{tag: :div, attrs: [a: 1, a: 2, a: 3, a: 4]}
+
+    assert (div ".c1") == %E{tag: :div, attrs: [class: :c1]}
+    assert (div ".c1.c2.c3") == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3]}
+    assert (div ".c1.c2.c3#id") == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3, id: :id]}
+
     assert ~h/div.c1/ == %E{tag: :div, attrs: [class: :c1]}
     assert ~h/.c1/ == %E{tag: :div, attrs: [class: :c1]}
     assert ~h/.c1.c2.c3/ == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3]}
@@ -84,9 +94,28 @@ defmodule CompilerTest do
                                                           title: "an image",
                                                           alt: "an image"]}}
   end
+end
 
-  # TODO: move these to a separate test module where the compiler is overridden
-  #       and automatically renders to js
+defmodule CompilerTest.JsCompiler do
+  def compile(content) do
+    js = TimeMachine.Compiler.to_ast(content)
+    |> ESTree.Tools.Generator.generate(false)
+    {:safe, js}
+  end
+end
+
+defmodule CompilerTest do
+  use ExUnit.Case
+  use Marker,
+    compiler: TimeMachine.Compiler,
+    elements: TimeMachine.Elements
+
+  import TestTemplates
+
+  defp to_js(el), do: TimeMachine.Compiler.to_ast(el) |> ESTree.Tools.Generator.generate(false)
+
+  doctest TimeMachine.Compiler
+
   test "generate js" do
     assert (div "one") |> to_js() ==
         "h('div','one')"
