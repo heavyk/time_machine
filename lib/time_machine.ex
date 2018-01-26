@@ -49,8 +49,7 @@ defmodule TimeMachine.Elements do
         _ -> acc
       end
     end))
-    # quote do: %Marker.Element{tag: unquote(tag), attrs: unquote(attrs)}
-    quote do: unquote(tag)(unquote(attrs))
+    quote do: %Marker.Element{tag: unquote(tag), attrs: unquote(attrs)}
   end
 
   # some interesting things that can be defined, maybe

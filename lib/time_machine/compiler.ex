@@ -54,15 +54,19 @@ defmodule TimeMachine.Compiler do
     J.literal(value)
   end
 
-  # TODO
-  # def to_ast(%Element{tag: :_panel, attrs: attrs, content: content}) do
-  # 	J.arrow_function_expression([:d], [], to_ast(content))
-  # end
-
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
-    tag = J.literal(Atom.to_string(tag))
-    args = if length(attrs) > 0, do: [tag, do_attrs(attrs)], else: [tag]
-    args = if not is_nil(content), do: args ++ do_args(content), else: args
+    str = Enum.reduce(attrs, "", fn {k, v}, acc ->
+      case k do
+        :class -> acc <> keyword_prefixer(v, ".")
+        :c -> acc <> keyword_prefixer(v, ".")
+        :id -> acc <> keyword_prefixer(v, "#")
+        _ -> acc
+      end
+    end)
+    tag = J.literal(if tag == :div and str != "", do: str, else: Atom.to_string(tag) <> str)
+    attrs = do_attrs(attrs)
+    args = if is_nil(attrs),   do: [tag], else: [tag, attrs]
+    args = if is_nil(content), do: args,  else: args ++ do_args(content)
 
     J.call_expression(J.identifier(:h), args)
   end
@@ -77,15 +81,26 @@ defmodule TimeMachine.Compiler do
 
   defp do_attrs(attrs) do
     attrs = Enum.reduce(attrs, [], fn {k, v}, acc ->
-      {_, updated} = Keyword.get_and_update(acc, k, fn
-        nil -> {nil, v}
-        cur when is_list(cur) -> {cur, cur ++ [v]}
-        cur -> {cur, [cur, v]}
-      end)
-      updated
+      case k do
+        :class -> acc
+        :c -> acc
+        :id -> acc
+        _ ->
+          {_, updated} = Keyword.get_and_update(acc, k, fn
+            nil -> {nil, v}
+            cur when is_list(cur) -> {cur, cur ++ [v]}
+            cur -> {cur, [cur, v]}
+          end)
+          updated
+      end
     end)
-    attrs = :lists.reverse(attrs)
-    J.object_pattern(do_attrs(attrs, []))
+    if length(attrs) > 0 do
+      :lists.reverse(attrs)
+      |> do_attrs([])
+      |> J.object_pattern()
+    else
+      nil
+    end
   end
   defp do_attrs([{key, value} | rest], acc) when is_literal(value) do
     do_attrs(rest, acc ++ [J.property(J.identifier(key), J.literal(value))])
@@ -96,5 +111,11 @@ defmodule TimeMachine.Compiler do
   end
   defp do_attrs([], acc) do
     acc
+  end
+
+  defp keyword_prefixer(kw, prefix) do
+    List.wrap(kw)
+    |> Enum.map(fn k -> prefix <> to_string(k) end)
+    |> Enum.join("")
   end
 end

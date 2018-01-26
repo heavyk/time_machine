@@ -66,6 +66,7 @@ defmodule ElementsTest do
     assert (div ".c1") == %E{tag: :div, attrs: [class: :c1]}
     assert (div ".c1.c2.c3") == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3]}
     assert (div ".c1.c2.c3#id") == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3, id: :id]}
+    # assert (div "...") == %E{tag: :div, content: "..."}
 
     assert ~h/div.c1/ == %E{tag: :div, attrs: [class: :c1]}
     assert ~h/.c1/ == %E{tag: :div, attrs: [class: :c1]}
@@ -96,13 +97,13 @@ defmodule ElementsTest do
   end
 end
 
-defmodule CompilerTest.JsCompiler do
-  def compile(content) do
-    js = TimeMachine.Compiler.to_ast(content)
-    |> ESTree.Tools.Generator.generate(false)
-    {:safe, js}
-  end
-end
+# defmodule CompilerTest.JsCompiler do
+#   def compile(content) do
+#     js = TimeMachine.Compiler.to_ast(content)
+#     |> ESTree.Tools.Generator.generate(false)
+#     {:safe, js}
+#   end
+# end
 
 defmodule CompilerTest do
   use ExUnit.Case
@@ -146,6 +147,8 @@ defmodule CompilerTest do
     assert (div [a: 1, a: 2, a: 3, a: 4]) |> to_js() == "h('div',{a:[1,2,3,4]})"
 
     # output the element as its css selector to save attribute space
-    # assert ~h/.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
+    assert ~h/.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
+    assert ~h/div.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
+    assert ~h/custom-el.c1.c2.c3#id/ |> to_js() == "h('custom-el.c1.c2.c3#id')"
   end
 end
