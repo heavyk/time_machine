@@ -33,10 +33,12 @@ defmodule TestTemplates do
     end
   end
 
-  template :tpl_logic1 do
+  template :tpl_logic_static do
     fragment do
       if @num == 2, do: (div "yay"), else: (div "nope")
+      if @num == 2, do: (div "yay")
       div if @num != 2, do: "yay", else: "nope"
+      div if @num != 2, do: "yay"
     end
   end
 
@@ -116,18 +118,22 @@ defmodule ElementsTest do
                                                           alt: "an image"]}}
   end
 
-  test "logic" do
-    assert tpl_logic1([num: 1]) == %Marker.Element{attrs: [], content:
+  test "static logic" do
+    assert tpl_logic_static([num: 1]) == %Marker.Element{attrs: [], content:
       %Marker.Element{attrs: [], content: [
         %Marker.Element{attrs: [], content: "nope", tag: :div},
+        nil,
+        %Marker.Element{attrs: [], content: "yay", tag: :div},
         %Marker.Element{attrs: [], content: "yay", tag: :div}
       ], tag: :_fragment
     }, tag: :_template}
 
-    assert tpl_logic1([num: 2]) == %Marker.Element{attrs: [], content:
+    assert tpl_logic_static([num: 2]) == %Marker.Element{attrs: [], content:
       %Marker.Element{attrs: [], content: [
         %Marker.Element{attrs: [], content: "yay", tag: :div},
-        %Marker.Element{attrs: [], content: "nope", tag: :div}
+        %Marker.Element{attrs: [], content: "yay", tag: :div},
+        %Marker.Element{attrs: [], content: "nope", tag: :div},
+        %Marker.Element{attrs: [], content: nil, tag: :div}
       ], tag: :_fragment
     }, tag: :_template}
   end
