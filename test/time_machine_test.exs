@@ -42,6 +42,15 @@ defmodule TestTemplates do
     end
   end
 
+  template :tpl_logic_obv do
+    fragment do
+      if @num! == 2, do: (div "yay"), else: (div "nope")
+      if @num! == 2, do: (div "yay")
+      div if @num! != 2, do: "yay", else: "nope"
+      div if @num! != 2, do: "yay"
+    end
+  end
+
   component :foto do
     size = @size
     size = cond do
@@ -137,6 +146,25 @@ defmodule ElementsTest do
       ], tag: :_fragment
     }, tag: :_template}
   end
+
+  test "obv logic" do
+    assert tpl_logic_obv() == %Marker.Element{attrs: [], content:
+      %Marker.Element{attrs: [], content: [
+        %Marker.Element.If{test: quote(do: @num == 2),
+                           do: %Marker.Element{attrs: [], content: "nope", tag: :div},
+                           else: %Marker.Element{attrs: [], content: "yay", tag: :div}},
+        %Marker.Element.If{test: quote(do: @num == 2),
+                           do: %Marker.Element{attrs: [], content: "nope", tag: :div},
+                           else: nil},
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: @num != 2), do: "yay", else: "nope"},
+                        tag: :div},
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: @num != 2), do: "yay", else: nil},
+                        tag: :div}
+      ], tag: :_fragment
+    }, tag: :_template}
+  end
 end
 
 # defmodule CompilerTest.JsCompiler do
@@ -192,5 +220,12 @@ defmodule CompilerTest do
     assert ~h/.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
     assert ~h/div.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
     assert ~h/custom-el.c1.c2.c3#id/ |> to_js() == "h('custom-el.c1.c2.c3#id')"
+
+    # static logic renders to js correctly
+    assert tpl_logic_static([num: 1]) |> to_js() == "()=>()=>[h('div','nope'),null,h('div','yay'),h('div','yay')]"
+    assert tpl_logic_static([num: 2]) |> to_js() == "()=>()=>[h('div','yay'),h('div','yay'),h('div','nope'),h('div')]"
+
+    # obv logic renders to js correctly
+    assert tpl_logic_obv() |> to_js() == "({num})=>()=>[(num==2?h('div','nope'):h('div','yay')),(num==2?h('div','nope'):null),h('div',(num==2?'yay':'nope')),h('div',(num==2?'yay':null))]"
   end
 end
