@@ -34,21 +34,8 @@ defmodule TimeMachine.Elements do
     tag: :input
   }
   """
-  defmacro sigil_h({:<<>>, _, [binary]}, _attrs) when is_binary(binary) do
-    matches = Regex.split(~r/[\.#]?[a-zA-Z0-9_:-]+/, binary, include_captures: true)
-    |> Enum.reject(fn s -> byte_size(s) == 0 end)
-    tag = case List.first(matches) do
-      "." <> _ -> :div
-      "#" <> _ -> :div
-      tag -> String.to_atom(tag)
-    end
-    attrs = :lists.reverse(Enum.reduce(matches, [], fn i, acc ->
-      case i do
-        "." <> c -> [{:class, String.to_atom(c)} | acc]
-        "#" <> c -> [{:id, String.to_atom(c)} | acc]
-        _ -> acc
-      end
-    end))
+  defmacro sigil_h({:<<>>, _, [selector]}, _mods) when is_binary(selector) do
+    {tag, attrs} = Marker.Element.parse_selector(selector)
     quote do: %Marker.Element{tag: unquote(tag), attrs: unquote(attrs)}
   end
 

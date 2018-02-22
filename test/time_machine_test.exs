@@ -70,10 +70,16 @@ defmodule ElementsTest do
     assert (div [lala: 1234], "one") == %E{tag: :div, content: "one", attrs: [lala: 1234]}
     assert (div [a: 1, a: 2, a: 3, a: 4]) == %E{tag: :div, attrs: [a: 1, a: 2, a: 3, a: 4]}
 
-    assert (div ".c1") == %E{tag: :div, attrs: [class: :c1]}
-    assert (div ".c1.c2.c3") == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3]}
-    assert (div ".c1.c2.c3#id") == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3, id: :id]}
-    # assert (div "...") == %E{tag: :div, content: "..."}
+    # test selectors instead of a kw-list
+    assert (div 'lala.c1') == %E{tag: :div, attrs: [class: :c1]}
+    assert (div '.c1') == %E{tag: :div, attrs: [class: :c1]}
+    assert (div '.c1.c2.c3') == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3]}
+    assert (div '.c1.c2.c3#id') == %E{tag: :div, attrs: [class: :c1, class: :c2, class: :c3, id: :id]}
+    assert (div '#id', do: "lala") == %E{tag: :div, attrs: [id: :id], content: "lala"}
+
+    # ensure binaries are never parsed as selectors
+    assert (div "...") == %E{tag: :div, content: "..."}
+    assert (div "#1") == %E{tag: :div, content: "#1"}
 
     assert ~h/div.c1/ == %E{tag: :div, attrs: [class: :c1]}
     assert ~h/.c1/ == %E{tag: :div, attrs: [class: :c1]}
