@@ -9,7 +9,7 @@ any of the bindings.
 
 ## Implementation notes
 
-assigns with a `!` at the end eg. `@variable!`, will become a js observable.
+assigns that end with a `!` (eg. `@variable!`), will become a js observable.
 
 
 #### fragment

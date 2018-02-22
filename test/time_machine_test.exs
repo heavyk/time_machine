@@ -33,6 +33,13 @@ defmodule TestTemplates do
     end
   end
 
+  template :tpl_logic1 do
+    fragment do
+      if @num == 2, do: (div "yay"), else: (div "nope")
+      div if @num != 2, do: "yay", else: "nope"
+    end
+  end
+
   component :foto do
     size = @size
     size = cond do
@@ -87,6 +94,13 @@ defmodule ElementsTest do
         %E{tag: :div, content: 11},
         %E{tag: :div, content: 11.1}
       ]}
+
+    assert (tpl_inner_frag([num: 11])) == %E{tag: :_template, content: %E{tag: :_fragment, content: [
+        %E{tag: :div, content: 1},
+        %E{tag: :div, content: 1.1},
+        %E{tag: :div, content: 11},
+        %E{tag: :div, content: 11.1}
+      ]}}
   end
 
   test "components" do
@@ -94,6 +108,22 @@ defmodule ElementsTest do
       %E{tag: :_component, content: %E{tag: :img, attrs: [src: "/i/m/lol",
                                                           title: "an image",
                                                           alt: "an image"]}}
+  end
+
+  test "logic" do
+    assert tpl_logic1([num: 1]) == %Marker.Element{attrs: [], content:
+      %Marker.Element{attrs: [], content: [
+        %Marker.Element{attrs: [], content: "nope", tag: :div},
+        %Marker.Element{attrs: [], content: "yay", tag: :div}
+      ], tag: :_fragment
+    }, tag: :_template}
+
+    assert tpl_logic1([num: 2]) == %Marker.Element{attrs: [], content:
+      %Marker.Element{attrs: [], content: [
+        %Marker.Element{attrs: [], content: "yay", tag: :div},
+        %Marker.Element{attrs: [], content: "nope", tag: :div}
+      ], tag: :_fragment
+    }, tag: :_template}
   end
 end
 
