@@ -8,7 +8,7 @@ defmodule TimeMachine.Elements do
   @doc "panel is like a template, but we need to handle more than just the @ assigns"
   defmacro panel(name, do: block) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    block = Marker.handle_assigns(block, false)
+    block = Marker.handle_logic(block)
     quote do
       def unquote(name)(var!(assigns)) do
         unquote(use_elements)

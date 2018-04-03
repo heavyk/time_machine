@@ -157,7 +157,7 @@ defmodule ElementsTest do
     %E{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
   end
   defp clean(ast) do
-    Macro.update_meta(ast, fn (meta) -> [] end)
+    Macro.update_meta(ast, fn (_meta) -> [] end)
   end
 
   test "obv logic" do
