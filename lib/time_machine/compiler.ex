@@ -24,6 +24,23 @@ defmodule TimeMachine.Compiler do
   #   quote do: unquote(content)
   # end
 
+  # opuerator layout
+  @unary_operator       [ :-, :+, :!, :"~", :typeof, :void, :delete ]
+
+  @binary_operator      [ :==, :!=, :===, :!==, :<, :<=, :>, :>=,
+                          :"<<", :">>", :>>>, :+, :-, :*, :/, :%, :|,
+                          :^, :&, :in, :instanceof, :"**" ]
+
+  @logical_operator     [ :||, :&& ]
+
+  @assignment_operator  [ :=, :"+=", :"-=", :"*=", :"/=", :"%=",
+                          :"<<=", :">>=", :">>>=",
+                          :"|=", :"^=", :"&=", :"**=" ]
+
+  @update_operator      [ :++, :-- ]
+
+  @operator @unary_operator ++ @binary_operator ++ @logical_operator ++ @assignment_operator ++ @update_operator
+
   # convert to javascript
 
   def to_js(ast) do
@@ -35,6 +52,26 @@ defmodule TimeMachine.Compiler do
   def to_ast(content) when is_list(content) do
     Enum.map(content, &to_ast/1)
     |> J.array_expression()
+  end
+  def to_ast(value) when is_literal(value) do
+    J.literal(value)
+  end
+  def to_ast({:%, [], [{:__aliases__, _, _} = aliases_, {:%{}, _, map_}]} = value) do
+    # this is a strange case where a struct is in elixir ast
+    to_ast(Map.new(Keyword.put(map_, :__struct__, Macro.expand(aliases_, __ENV__))))
+  end
+  def to_ast({op, _meta, [lhs, rhs]} = value) when op in @logical_operator do
+    J.logical_expression(op, to_ast(lhs), to_ast(rhs))
+  end
+  def to_ast({op, _meta, [lhs, rhs]} = value) when op in @binary_operator do
+    J.binary_expression(op, to_ast(lhs), to_ast(rhs))
+  end
+
+  # def to_ast({op, _meta, [lhs, rhs]} = value) when op in @unary_operator do
+  #   J.unary_expression(op, true, to_ast(lhs), to_ast(rhs))
+  # end
+  def to_ast(%Element.Var{name: name}) do
+    J.identifier(String.to_atom(name))
   end
   def to_ast(%Element{tag: :_fragment, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
@@ -48,8 +85,9 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_panel, content: content}) do
     J.arrow_function_expression([J.identifier(:d)], [], to_ast(content))
   end
-  def to_ast(value) when is_literal(value) do
-    J.literal(value)
+  def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
+    # TODO: incomplete set of functions to convert tests from elixir ast to js ast
+    J.conditional_statement(to_ast(test_), to_ast(do_), to_ast(else_))
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
     str = Enum.reduce(attrs, "", fn {k, v}, acc ->
