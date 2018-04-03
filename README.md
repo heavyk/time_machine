@@ -13,14 +13,23 @@ assigns that end with a `!` (eg. `@variable!`), will become a js observable.
 
 
 #### fragment
-- every statement in the do-block gets put into the content (has optional assigns)
-- creates a function
+- ex:
+  - every statement in the do-block gets put into the content (has optional assigns)
+  - defines a function
+- js:
+  - ???
 
 #### template
-- only the *last statement* in the do-block gets put into the content (has optional assigns)
-- creates a function
+- ex:
+  - only the *last statement* in the do-block gets put into the content (has optional assigns)
+  - defines a function
+- js:
+  - creates an anon wrapper function which defines the necessary `h`/`s`/`t` functions to be used in its scope.
 
 #### component
-- only the *last statement* in the do-block gets put into the content (has required assigns)
-- creates a macro and a function
-- useful because `@__content__` is a list of every statement inside of the macro's do-block
+- ex:
+  - only the *last statement* in the do-block gets put into the content (has required assigns)
+  - defines a macro and a function
+  - useful because `@__content__` is a list of every statement inside of the macro's do-block
+- js:
+  - does *not* create a wrapper function, and will used the enclosing template's `h`/`s`/`t` functions

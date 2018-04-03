@@ -58,7 +58,6 @@ defmodule TimeMachine.Templates do
   defmacro __using__(_) do
     quote do
       Module.register_attribute(__MODULE__, :templates, accumulate: true)
-
       @on_definition TimeMachine.Templates
       @before_compile TimeMachine.Templates
     end
@@ -89,54 +88,54 @@ defmodule TimeMachine do
     elements: TimeMachine.Elements
 
   # SOON: templates go here!
-  template :toggle_button do
-    div ".content" do
-      button [onclick: @toggler!], "toggle"
-      div do
-        if @toggler! do
-          div "ON!"
-        else
-          div "off..."
-        end
-      end
-    end
-  end
+  # template :toggle_button do
+  #   div ".content" do
+  #     button [onclick: @toggler!], "toggle"
+  #     div do
+  #       if @toggler! do
+  #         div "ON!"
+  #       else
+  #         div "off..."
+  #       end
+  #     end
+  #   end
+  # end
 
   def hello do
     :world
   end
 end
 
-defmodule Toggler do
-  @moduledoc """
-  A simple demonstration of a html interface written in elixir, which renders to js
-  """
-
-  @css '''
-  .content {
-    border: solid 1px #4a4;
-  }
-  '''
-
-  use Marker,
-    compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements
-
-  # SOON: templates go here!
-  template :main do
-    div ".content" do
-      button [onclick: @toggler!], "toggle"
-      div do
-        if @toggler! do
-          div "ON!"
-        else
-          div "off..."
-        end
-      end
-    end
-  end
-
-  def hello do
-    :world
-  end
-end
+# defmodule Toggler do
+#   @moduledoc """
+#   A simple demonstration of a html interface written in elixir, which renders to js
+#   """
+#
+#   @css '''
+#   .content {
+#     border: solid 1px #4a4;
+#   }
+#   '''
+#
+#   use Marker,
+#     compiler: TimeMachine.Compiler,
+#     elements: TimeMachine.Elements
+#
+#   # SOON: templates go here!
+#   template :main do
+#     div ".content" do
+#       button [onclick: @toggler!], "toggle"
+#       div do
+#         if @toggler! do
+#           div "ON!"
+#         else
+#           div "off..."
+#         end
+#       end
+#     end
+#   end
+#
+#   def hello do
+#     :world
+#   end
+# end

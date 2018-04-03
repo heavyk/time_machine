@@ -5,6 +5,8 @@
 - make a toggle if-else button that switches text render in phoenix (and works)
 
 ### js implementation
+- assume the `t` function is an alias to `obv.transform`
+- scopes are created per template - not fragment
 - panel gets the scope and creates the `h`/`s` function. any observables listened to need to be unlistened when the scope is cleaned.
 
 ### general

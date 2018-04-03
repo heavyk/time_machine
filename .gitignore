@@ -24,3 +24,6 @@ time_machine-*.tar
 
 # ignore ElixirLS
 /.elixir_ls
+
+# ignore vscode
+/.vscode
