@@ -245,6 +245,10 @@ defmodule CompilerTest do
     # conditions are well met
     assert %Marker.Element.Var{name: "num"} |> to_js() == "num"
     assert quote(do: %Marker.Element.Var{name: "num"} == 2) |> to_js() == "num==2"
+    assert quote(do: %Marker.Element.Var{name: "num"} === %Marker.Element.Var{name: "num2"}) |> to_js() == "num===num2"
+    assert Marker.handle_logic(quote(do: @num! === @num2!)) |> to_js() == "num===num2"
+    assert Marker.handle_logic(quote(do: @num! === "a string")) |> to_js() == "num==='a string'"
+    assert Marker.handle_logic(quote(do: @num! === 1234 && @num2! === 1111)) |> to_js() == "num===1234&&num2===1111"
 
     # obv logic renders to js correctly
     # assert tpl_logic_obv() |> to_js() == "({num})=>()=>[(num==2?h('div','nope'):h('div','yay')),(num==2?h('div','nope'):null),h('div',(num==2?'yay':'nope')),h('div',(num==2?'yay':null))]"
