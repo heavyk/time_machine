@@ -1,4 +1,13 @@
 
+### current effort
+- render the js vars/obvs correctly when building the js:
+  - vars can be used directly
+  - obvs are passed to a `t`/`c` function to get their values
+- conditionals use `t` to translate their values into something meaningful.
+  - in prewalk, all variables used inside of the conditional should be saved
+  - then, in postwalk, all variables used should be passed to `t`
+
+
 ### first steps
 
 - integrate into phoenix a simple html page, then compiles the template into js

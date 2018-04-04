@@ -16,11 +16,10 @@ defmodule TestTemplates do
     div "test #{@val}"
   end
 
-  fragment :frag_test do
-    div 1
-    div 1.1
-    div @num
-    div @num + 0.1
+  template :tpl_one_item_frag do
+    fragment do
+      div "test"
+    end
   end
 
   template :tpl_inner_frag do
@@ -44,10 +43,36 @@ defmodule TestTemplates do
 
   template :tpl_logic_obv do
     fragment do
-      if @num! == 2, do: (div "yay"), else: (div "nope")
-      if @num! == 2, do: (div "yay")
-      div if @num! != 2, do: "yay", else: "nope"
-      div if @num! != 2, do: "yay"
+      if ~o(num) == 2, do: (div "yay"), else: (div "nope")
+      if ~o(num) == 2, do: (div "yay")
+      div if ~o(num) != 2, do: "yay", else: "nope"
+      div if ~o(num) != 2, do: "yay"
+    end
+  end
+
+  template :tpl_logic_var do
+    fragment do
+      if ~v(num) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2, do: (div "yay")
+      div if ~v(num) != 2, do: "yay", else: "nope"
+      div if ~v(num) != 2, do: "yay"
+    end
+  end
+
+  template :tpl_logic_mixed do
+    fragment do
+      if ~o(num) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2, do: (div "yay"), else: (div "nope")
+      if @num == 2, do: (div "yay"), else: (div "nope")
+      if ~o(num) == 2, do: (div "yay")
+      if ~v(num) == 2, do: (div "yay")
+      if @num == 2, do: (div "yay")
+      div if ~o(num) != 2, do: "yay", else: "nope"
+      div if ~v(num) != 2, do: "yay", else: "nope"
+      div if @num != 2, do: "yay", else: "nope"
+      div if ~o(num) != 2, do: "yay"
+      div if ~v(num) != 2, do: "yay"
+      div if @num != 2, do: "yay"
     end
   end
 
@@ -105,12 +130,9 @@ defmodule ElementsTest do
   end
 
   test "fragments" do
-    assert (frag_test([num: 11])) == %E{tag: :_fragment, content: [
-        %E{tag: :div, content: 1},
-        %E{tag: :div, content: 1.1},
-        %E{tag: :div, content: 11},
-        %E{tag: :div, content: 11.1}
-      ]}
+    assert tpl_one_item_frag() == %E{tag: :_template, content: %E{tag: :_fragment, content:
+        %E{tag: :div, content: "test"}
+      }}
 
     assert (tpl_inner_frag([num: 11])) == %E{tag: :_template, content: %E{tag: :_fragment, content: [
         %E{tag: :div, content: 1},
@@ -160,8 +182,29 @@ defmodule ElementsTest do
     Macro.update_meta(ast, fn (_meta) -> [] end)
   end
 
-  test "obv logic" do
+  test "obv/var logic" do
     assert clean(tpl_logic_obv()) == clean(%Marker.Element{attrs: [], content:
+      %Marker.Element{attrs: [], content: [
+        %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} == 2),
+                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
+        %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} == 2),
+                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                           else: nil},
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} != 2),
+                                                    do: "yay",
+                                                    else: "nope"},
+                        tag: :div},
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} != 2),
+                                                    do: "yay",
+                                                    else: nil},
+                        tag: :div}
+      ], tag: :_fragment
+    }, tag: :_template})
+
+    assert clean(tpl_logic_var()) == clean(%Marker.Element{attrs: [], content:
       %Marker.Element{attrs: [], content: [
         %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} == 2),
                              do: %Marker.Element{attrs: [], content: "yay", tag: :div},
@@ -179,6 +222,50 @@ defmodule ElementsTest do
                                                     do: "yay",
                                                     else: nil},
                         tag: :div}
+      ], tag: :_fragment
+    }, tag: :_template})
+
+    assert clean(tpl_logic_mixed([num: 2])) == clean(%Marker.Element{attrs: [], content:
+      %Marker.Element{attrs: [], content: [
+        %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} == 2),
+                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
+        %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} == 2),
+                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
+        %Marker.Element{attrs: [], content: "yay", tag: :div},
+
+        %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} == 2),
+                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                           else: nil},
+        %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} == 2),
+                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                           else: nil},
+        %Marker.Element{attrs: [], content: "yay", tag: :div},
+
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} != 2),
+                                                    do: "yay",
+                                                    else: "nope"},
+                        tag: :div},
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} != 2),
+                                                    do: "yay",
+                                                    else: "nope"},
+                        tag: :div},
+        %Marker.Element{attrs: [], content: "nope", tag: :div},
+
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} != 2),
+                                                    do: "yay",
+                                                    else: nil},
+                        tag: :div},
+        %Marker.Element{attrs: [],
+                        content: %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} != 2),
+                                                    do: "yay",
+                                                    else: nil},
+                        tag: :div},
+        %Marker.Element{attrs: [], content: nil, tag: :div}
       ], tag: :_fragment
     }, tag: :_template})
   end
@@ -216,16 +303,17 @@ defmodule CompilerTest do
       div "two"
     end) |> to_js() == "h('div',h('div',{lala:1234,wewe:'lol'},'one'),h('div','two'))"
 
-    # top-level template/fragment w/ variable interpolation
+    # top-level template w/ variable interpolation
     assert (tpl_test([val: 1234])) |> to_js() ==
       "()=>h('div','test 1234')"
-    assert (frag_test([num: 11])) |> to_js() ==
-      "()=>[h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
+
+    # fragtments are always rendered as arrays (is this necessary?)
+    assert tpl_one_item_frag() |> to_js() ==
+      "()=>[h('div','test')]"
 
     # inner fragments
-    # TODO: although, the double functions is correct, one of them should be removed
     assert (tpl_inner_frag([num: 11])) |> to_js() ==
-      "()=>()=>[h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
+      "()=>[h('div',1),h('div',1.1),h('div',11),h('div',11.1)]"
 
     assert (foto size: 180, id: "lol", title: "an image") |> to_js() ==
       "()=>h('img',{src:'/i/m/lol',title:'an image',alt:'an image'})"
@@ -239,19 +327,20 @@ defmodule CompilerTest do
     assert ~h/custom-el.c1.c2.c3#id/ |> to_js() == "h('custom-el.c1.c2.c3#id')"
 
     # static logic renders to js correctly
-    assert tpl_logic_static([num: 1]) |> to_js() == "()=>()=>[h('div','nope'),null,h('div','yay'),h('div','yay')]"
-    assert tpl_logic_static([num: 2]) |> to_js() == "()=>()=>[h('div','yay'),h('div','yay'),h('div','nope'),h('div')]"
+    assert tpl_logic_static([num: 1]) |> to_js() == "()=>[h('div','nope'),null,h('div','yay'),h('div','yay')]"
+    assert tpl_logic_static([num: 2]) |> to_js() == "()=>[h('div','yay'),h('div','yay'),h('div','nope'),h('div')]"
 
     # conditions are well met
     assert %Marker.Element.Var{name: "num"} |> to_js() == "num"
     assert quote(do: %Marker.Element.Var{name: "num"} == 2) |> to_js() == "num==2"
     assert quote(do: %Marker.Element.Var{name: "num"} === %Marker.Element.Var{name: "num2"}) |> to_js() == "num===num2"
-    assert Marker.handle_logic(quote(do: @num! === @num2!)) |> to_js() == "num===num2"
-    assert Marker.handle_logic(quote(do: @num! === "a string")) |> to_js() == "num==='a string'"
-    assert Marker.handle_logic(quote(do: @num! === 1234 && @num2! === 1111)) |> to_js() == "num===1234&&num2===1111"
+    # assert Marker.handle_logic(quote(do: ~o(num) === @num2!)) |> to_js() == "num===num2"
+    # assert Marker.handle_logic(quote(do: ~o(num) === "a string")) |> to_js() == "num==='a string'"
+    # assert Marker.handle_logic(quote(do: ~o(num) === 1234 && @num2! === 1111)) |> to_js() == "num===1234&&num2===1111"
 
     # obv logic renders to js correctly
     # assert tpl_logic_obv() |> to_js() == "({num})=>()=>[(num==2?h('div','nope'):h('div','yay')),(num==2?h('div','nope'):null),h('div',(num==2?'yay':'nope')),h('div',(num==2?'yay':null))]"
+
     # assert tpl_logic_obv() |> to_js() == "({num})=>()=>[t(num,(v)=>v==2?h('div','nope'):h('div','yay')),t(num,(v)=>v==2?h('div','nope'):null),h('div',t(num,(v)=>v==2?'yay':'nope')),h('div',t(num,(v)=>v==2?'yay':null))]"
   end
 end

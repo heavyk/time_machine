@@ -74,7 +74,10 @@ defmodule TimeMachine.Compiler do
     J.identifier(String.to_atom(name))
   end
   def to_ast(%Element{tag: :_fragment, content: content}) do
-    J.arrow_function_expression([], [], to_ast(content))
+    # for now, we're outputting an array by default, but I imagine that the obv replcement code
+    # could replace individual elements, fragments, and null elements just fine. so, maybe we
+    # can remove the List.wrap then
+    to_ast(List.wrap(content))
   end
   def to_ast(%Element{tag: :_template, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))

@@ -19,26 +19,6 @@ defmodule TimeMachine.Elements do
     end
   end
 
-
-  @doc """
-  sigil ~h is a shortcut to create elements
-
-  not that useful because no other attrs can be added, other than class or id.
-
-  ## Examples
-
-  iex> ~h/input.input-group.form/
-  %Marker.Element{
-    attrs: [class: :"input-group", class: :form],
-    content: nil,
-    tag: :input
-  }
-  """
-  defmacro sigil_h({:<<>>, _, [selector]}, _mods) when is_binary(selector) do
-    {tag, attrs} = Marker.Element.parse_selector(selector)
-    quote do: %Marker.Element{tag: unquote(tag), attrs: unquote(attrs)}
-  end
-
   # some interesting things that can be defined, maybe
   # defmacro left <~> right do
   #   IO.puts "yay! #{inspect left} #{inspect right}"
