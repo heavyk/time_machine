@@ -73,13 +73,18 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element.Var{name: name}) do
     J.identifier(String.to_atom(name))
   end
+  def to_ast(%Element.Obv{name: name}) do
+    # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
+    J.identifier(String.to_atom(name))
+  end
   def to_ast(%Element{tag: :_fragment, content: content}) do
     # for now, we're outputting an array by default, but I imagine that the obv replcement code
     # could replace individual elements, fragments, and null elements just fine. so, maybe we
     # can remove the List.wrap then
     to_ast(List.wrap(content))
   end
-  def to_ast(%Element{tag: :_template, content: content}) do
+  def to_ast(%Element{tag: :_template, content: content, attrs: attrs}) do
+    IO.puts "template: #{inspect attrs}"
     J.arrow_function_expression([], [], to_ast(content))
   end
   def to_ast(%Element{tag: :_component, content: content}) do
@@ -90,7 +95,7 @@ defmodule TimeMachine.Compiler do
   end
   def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
     # TODO: incomplete set of functions to convert tests from elixir ast to js ast
-    J.conditional_statement(to_ast(test_), to_ast(do_), to_ast(else_))
+    J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
     str = Enum.reduce(attrs, "", fn {k, v}, acc ->

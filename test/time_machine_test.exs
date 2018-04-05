@@ -202,7 +202,7 @@ defmodule ElementsTest do
                                                     else: nil},
                         tag: :div}
       ], tag: :_fragment
-    }, tag: :_template})
+    }, tag: :_template, attrs: [num: :Obv]})
 
     assert clean(tpl_logic_var()) == clean(%Marker.Element{attrs: [], content:
       %Marker.Element{attrs: [], content: [
@@ -223,7 +223,7 @@ defmodule ElementsTest do
                                                     else: nil},
                         tag: :div}
       ], tag: :_fragment
-    }, tag: :_template})
+    }, tag: :_template, attrs: [num: :Var]})
 
     assert clean(tpl_logic_mixed([num: 2])) == clean(%Marker.Element{attrs: [], content:
       %Marker.Element{attrs: [], content: [
@@ -267,7 +267,7 @@ defmodule ElementsTest do
                         tag: :div},
         %Marker.Element{attrs: [], content: nil, tag: :div}
       ], tag: :_fragment
-    }, tag: :_template})
+    }, tag: :_template, attrs: [num: :Var, num: :Obv]})
   end
 end
 
@@ -334,13 +334,13 @@ defmodule CompilerTest do
     assert %Marker.Element.Var{name: "num"} |> to_js() == "num"
     assert quote(do: %Marker.Element.Var{name: "num"} == 2) |> to_js() == "num==2"
     assert quote(do: %Marker.Element.Var{name: "num"} === %Marker.Element.Var{name: "num2"}) |> to_js() == "num===num2"
-    # assert Marker.handle_logic(quote(do: ~o(num) === @num2!)) |> to_js() == "num===num2"
-    # assert Marker.handle_logic(quote(do: ~o(num) === "a string")) |> to_js() == "num==='a string'"
-    # assert Marker.handle_logic(quote(do: ~o(num) === 1234 && @num2! === 1111)) |> to_js() == "num===1234&&num2===1111"
+    assert Marker.handle_logic(quote(do: ~o(num) === ~o(num2))) |> to_js() == "num===num2"
+    assert Marker.handle_logic(quote(do: ~o(num) === "a string")) |> to_js() == "num==='a string'"
+    assert Marker.handle_logic(quote(do: ~o(num) === 1234 && ~o(num2) === 1111)) |> to_js() == "num===1234&&num2===1111"
 
-    # obv logic renders to js correctly
-    # assert tpl_logic_obv() |> to_js() == "({num})=>()=>[(num==2?h('div','nope'):h('div','yay')),(num==2?h('div','nope'):null),h('div',(num==2?'yay':'nope')),h('div',(num==2?'yay':null))]"
+    # logic renders to js correctly
+    assert tpl_logic_var() |> to_js() == "({num})=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"
 
-    # assert tpl_logic_obv() |> to_js() == "({num})=>()=>[t(num,(v)=>v==2?h('div','nope'):h('div','yay')),t(num,(v)=>v==2?h('div','nope'):null),h('div',t(num,(v)=>v==2?'yay':'nope')),h('div',t(num,(v)=>v==2?'yay':null))]"
+    assert tpl_logic_obv() |> to_js() == "({num})=>[t(num,(v)=>v==2?h('div','nope'):h('div','yay')),t(num,(v)=>v==2?h('div','nope'):null),h('div',t(num,(v)=>v==2?'yay':'nope')),h('div',t(num,(v)=>v==2?'yay':null))]"
   end
 end
