@@ -341,7 +341,6 @@ defmodule CompilerTest do
 
     # logic renders to js correctly
     assert tpl_logic_var() |> to_js() == "()=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"
-
-    assert tpl_logic_obv() |> to_js() == "{num}=>[t(num,(v)=>v==2?h('div','yay'):h('div','nope')),t(num,(v)=>v==2?h('div','yay'):null),h('div',t(num,(v)=>v!=2?'yay':'nope')),h('div',t(num,(v)=>v!=2?'yay':null))]"
+    assert tpl_logic_obv() |> to_js() == "{num}=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
   end
 end
