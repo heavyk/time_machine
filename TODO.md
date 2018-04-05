@@ -3,7 +3,14 @@
 - figure out variable scoping:
   - I like the idea of it being possible to have variable references (so that globals can be used)
   - I also like that the variables a template has access to are always passed into the (pure) function
-
+- explore the idea of scopes sorta like a reference to `this` and the establishing "scope" will define all of itself from `this`, eg. `const h = this.h`
+  - explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
+  - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,.. etc.
+- make a "plugin" which creates all of the necessary bindings to the js lib.
+- make a js lib which is just an interface, where it can be hot swapped as necessary.
+  - ability to load more than one lib. they are cached so the idea is to make them monstrous and containing more than enough (since it's reused by everyone, it makes no difference). this allows the "apps" to be as little as possible
+- make possible the ability to add custom tags: eg. `MyModule opt1: true, opt2: "lala" do`
+  - those call `MyModule.__marker__(opt1: true, opt2: "lala")` - which then returns some `%Marker.Element{tag: :div, content: ...}`
 
 ### first steps
 
@@ -36,6 +43,22 @@
 ### smallish things
 
 - add opts to the compiler and store some basic state in it (like parent node and stuff)
+
+### cool ideas
+
+- module connections: eg. `(MyModule awesome: true, wicked: true) <~> (YourModule sexy: true, alive: true)`
+  - <~>, <~, ~>
+  - defmacro my_cool_tag() do
+      (MyModule awesome: true, wicked: true) <~> (YourModule sexy: true, alive: true)
+    end
+
+
+### ideas to streamline future adoption
+
+- (maybe) convert the Eml html parser to make ractive-like "panel" files where there is: html,css,script sections.
+  - this will allow a bridge for js-oriented person to be able to start integrating those ractive-like panels.
+  - then, once familiar with that, it may be easier to ease into the elixir side of things as an obvious improvement.
+  - this should be held off as long as possible though, to encourage the use of metaprogramming in elixir to reach new heights of complexity -- eg. a gmail clone should appear relatively easy.
 
 ------------------------
 
