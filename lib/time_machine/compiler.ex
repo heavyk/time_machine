@@ -84,8 +84,18 @@ defmodule TimeMachine.Compiler do
     to_ast(List.wrap(content))
   end
   def to_ast(%Element{tag: :_template, content: content, attrs: attrs}) do
-    IO.puts "template: #{inspect attrs}"
-    J.arrow_function_expression([], [], to_ast(content))
+    # IO.puts "template: #{inspect attrs}"
+    obvs = Enum.reduce(attrs, [], fn {k, v}, acc ->
+      case v do
+        :Obv -> [J.identifier(k) | acc]
+        _ -> acc
+      end
+    end)
+    args = cond do
+      length(obvs) > 0 -> [J.object_pattern(obvs)]
+      true -> []
+    end
+    J.arrow_function_expression(args, [], to_ast(content))
   end
   def to_ast(%Element{tag: :_component, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
@@ -94,7 +104,7 @@ defmodule TimeMachine.Compiler do
     J.arrow_function_expression([J.identifier(:d)], [], to_ast(content))
   end
   def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    # TODO: incomplete set of functions to convert tests from elixir ast to js ast
+
     J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
