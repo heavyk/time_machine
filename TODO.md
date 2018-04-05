@@ -1,11 +1,8 @@
 
 ### current effort
-- render the js vars/obvs correctly when building the js:
-  - vars can be used directly
-  - obvs are passed to a `t`/`c` function to get their values
-- conditionals use `t` to translate their values into something meaningful.
-  - in prewalk, all variables used inside of the conditional should be saved
-  - then, in postwalk, all variables used should be passed to `t`
+- figure out variable scoping:
+  - I like the idea of it being possible to have variable references (so that globals can be used)
+  - I also like that the variables a template has access to are always passed into the (pure) function
 
 
 ### first steps
@@ -13,9 +10,13 @@
 - integrate into phoenix a simple html page, then compiles the template into js
 - make a toggle if-else button that switches text render in phoenix (and works)
 
+### optimiser
+- make a gen_server which stores information about the ast (like variable name and scope)
+- and can do things like rename variables and stuff
+
 ### js implementation
-- assume the `t` function is an alias to `obv.transform`
-- scopes are created per template - not fragment
+
+- assume the `t`/`c` function is an alias to `obv.transform` / `obv.compute`
 - panel gets the scope and creates the `h`/`s` function. any observables listened to need to be unlistened when the scope is cleaned.
 
 ### general

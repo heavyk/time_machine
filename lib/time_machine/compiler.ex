@@ -39,7 +39,7 @@ defmodule TimeMachine.Compiler do
 
   @update_operator      [ :++, :-- ]
 
-  @operator @unary_operator ++ @binary_operator ++ @logical_operator ++ @assignment_operator ++ @update_operator
+  # @operator @unary_operator ++ @binary_operator ++ @logical_operator ++ @assignment_operator ++ @update_operator
 
   # convert to javascript
 
@@ -56,14 +56,14 @@ defmodule TimeMachine.Compiler do
   def to_ast(value) when is_literal(value) do
     J.literal(value)
   end
-  def to_ast({:%, [], [{:__aliases__, _, _} = aliases_, {:%{}, _, map_}]} = value) do
+  def to_ast({:%, [], [{:__aliases__, _, _} = aliases_, {:%{}, _, map_}]}) do
     # this is a strange case where a struct is in elixir ast
     to_ast(Map.new(Keyword.put(map_, :__struct__, Macro.expand(aliases_, __ENV__))))
   end
-  def to_ast({op, _meta, [lhs, rhs]} = value) when op in @logical_operator do
+  def to_ast({op, _meta, [lhs, rhs]}) when op in @logical_operator do
     J.logical_expression(op, to_ast(lhs), to_ast(rhs))
   end
-  def to_ast({op, _meta, [lhs, rhs]} = value) when op in @binary_operator do
+  def to_ast({op, _meta, [lhs, rhs]}) when op in @binary_operator do
     J.binary_expression(op, to_ast(lhs), to_ast(rhs))
   end
 
@@ -84,7 +84,6 @@ defmodule TimeMachine.Compiler do
     to_ast(List.wrap(content))
   end
   def to_ast(%Element{tag: :_template, content: content, attrs: attrs}) do
-    # IO.puts "template: #{inspect attrs}"
     obvs = Enum.reduce(attrs, [], fn {k, v}, acc ->
       case v do
         :Obv -> [J.identifier(k) | acc]

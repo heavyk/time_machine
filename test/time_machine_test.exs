@@ -150,21 +150,21 @@ defmodule ElementsTest do
   end
 
   test "static logic" do
-    assert tpl_logic_static([num: 1]) == %Marker.Element{attrs: [], content:
-      %Marker.Element{attrs: [], content: [
-        %Marker.Element{attrs: [], content: "nope", tag: :div},
+    assert tpl_logic_static([num: 1]) == %Marker.Element{content:
+      %Marker.Element{content: [
+        %Marker.Element{content: "nope", tag: :div},
         nil,
-        %Marker.Element{attrs: [], content: "yay", tag: :div},
-        %Marker.Element{attrs: [], content: "yay", tag: :div}
+        %Marker.Element{content: "yay", tag: :div},
+        %Marker.Element{content: "yay", tag: :div}
       ], tag: :_fragment
     }, tag: :_template}
 
-    assert tpl_logic_static([num: 2]) == %Marker.Element{attrs: [], content:
-      %Marker.Element{attrs: [], content: [
-        %Marker.Element{attrs: [], content: "yay", tag: :div},
-        %Marker.Element{attrs: [], content: "yay", tag: :div},
-        %Marker.Element{attrs: [], content: "nope", tag: :div},
-        %Marker.Element{attrs: [], content: nil, tag: :div}
+    assert tpl_logic_static([num: 2]) == %Marker.Element{content:
+      %Marker.Element{content: [
+        %Marker.Element{content: "yay", tag: :div},
+        %Marker.Element{content: "yay", tag: :div},
+        %Marker.Element{content: "nope", tag: :div},
+        %Marker.Element{content: nil, tag: :div}
       ], tag: :_fragment
     }, tag: :_template}
   end
@@ -183,13 +183,13 @@ defmodule ElementsTest do
   end
 
   test "obv/var logic" do
-    assert clean(tpl_logic_obv()) == clean(%Marker.Element{attrs: [], content:
-      %Marker.Element{attrs: [], content: [
+    assert clean(tpl_logic_obv()) == clean(%Marker.Element{content:
+      %Marker.Element{content: [
         %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
-                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
+                             do: %Marker.Element{content: "yay", tag: :div},
+                           else: %Marker.Element{content: "nope", tag: :div}},
         %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                             do: %Marker.Element{content: "yay", tag: :div},
                            else: nil},
         %Marker.Element{attrs: [],
                         content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "num"} != 2),
@@ -204,13 +204,13 @@ defmodule ElementsTest do
       ], tag: :_fragment
     }, tag: :_template, attrs: [num: :Obv]})
 
-    assert clean(tpl_logic_var()) == clean(%Marker.Element{attrs: [], content:
-      %Marker.Element{attrs: [], content: [
+    assert clean(tpl_logic_var()) == clean(%Marker.Element{content:
+      %Marker.Element{content: [
         %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
-                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
+                             do: %Marker.Element{content: "yay", tag: :div},
+                           else: %Marker.Element{content: "nope", tag: :div}},
         %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                             do: %Marker.Element{content: "yay", tag: :div},
                            else: nil},
         %Marker.Element{attrs: [],
                         content: %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "num"} != 2),
@@ -225,23 +225,23 @@ defmodule ElementsTest do
       ], tag: :_fragment
     }, tag: :_template, attrs: [num: :Var]})
 
-    assert clean(tpl_logic_mixed([num: 2])) == clean(%Marker.Element{attrs: [], content:
-      %Marker.Element{attrs: [], content: [
+    assert clean(tpl_logic_mixed([num: 2])) == clean(%Marker.Element{content:
+      %Marker.Element{content: [
         %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "oo"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
-                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
+                             do: %Marker.Element{content: "yay", tag: :div},
+                           else: %Marker.Element{content: "nope", tag: :div}},
         %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "vv"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
-                           else: %Marker.Element{attrs: [], content: "nope", tag: :div}},
-        %Marker.Element{attrs: [], content: "yay", tag: :div},
+                             do: %Marker.Element{content: "yay", tag: :div},
+                           else: %Marker.Element{content: "nope", tag: :div}},
+        %Marker.Element{content: "yay", tag: :div},
 
         %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "oo"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                             do: %Marker.Element{content: "yay", tag: :div},
                            else: nil},
         %Marker.Element.If{test: quote(do: %Marker.Element.Var{name: "vv"} == 2),
-                             do: %Marker.Element{attrs: [], content: "yay", tag: :div},
+                             do: %Marker.Element{content: "yay", tag: :div},
                            else: nil},
-        %Marker.Element{attrs: [], content: "yay", tag: :div},
+        %Marker.Element{content: "yay", tag: :div},
 
         %Marker.Element{attrs: [],
                         content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "oo"} != 2),
@@ -253,7 +253,7 @@ defmodule ElementsTest do
                                                     do: "yay",
                                                     else: "nope"},
                         tag: :div},
-        %Marker.Element{attrs: [], content: "nope", tag: :div},
+        %Marker.Element{content: "nope", tag: :div},
 
         %Marker.Element{attrs: [],
                         content: %Marker.Element.If{test: quote(do: %Marker.Element.Obv{name: "oo"} != 2),
@@ -265,7 +265,7 @@ defmodule ElementsTest do
                                                     do: "yay",
                                                     else: nil},
                         tag: :div},
-        %Marker.Element{attrs: [], content: nil, tag: :div}
+        %Marker.Element{content: nil, tag: :div}
       ], tag: :_fragment
     }, tag: :_template, attrs: [vv: :Var, oo: :Obv]})
   end
