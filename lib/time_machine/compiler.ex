@@ -25,7 +25,8 @@ defmodule TimeMachine.Compiler do
   # end
 
   # opuerator layout
-  @unary_operator       [ :-, :+, :!, :"~", :typeof, :void, :delete ]
+  # @unary_operator       [ :-, :+, :!, :"~", :typeof, :void, :delete ]
+  @unary_operator       [ :typeof, :void, :delete ]
 
   @binary_operator      [ :==, :!=, :===, :!==, :<, :<=, :>, :>=,
                           :"<<", :">>", :>>>, :+, :-, :*, :/, :%, :|,
@@ -37,7 +38,9 @@ defmodule TimeMachine.Compiler do
                           :"<<=", :">>=", :">>>=",
                           :"|=", :"^=", :"&=", :"**=" ]
 
-  @update_operator      [ :++, :-- ]
+  # @update_operator      [ :++, :-- ]
+  # not really supported by the elixir compiler.
+  # should really only be used for optimisations
 
   # @operator @unary_operator ++ @binary_operator ++ @logical_operator ++ @assignment_operator ++ @update_operator
 
@@ -66,16 +69,26 @@ defmodule TimeMachine.Compiler do
   def to_ast({op, _meta, [lhs, rhs]}) when op in @binary_operator do
     J.binary_expression(op, to_ast(lhs), to_ast(rhs))
   end
-
-  # def to_ast({op, _meta, [lhs, rhs]} = value) when op in @unary_operator do
-  #   J.unary_expression(op, true, to_ast(lhs), to_ast(rhs))
-  # end
+  def to_ast({op, _meta, [lhs, rhs]}) when op in @assignment_operator do
+    J.assignment_expression(op, to_ast(lhs), to_ast(rhs))
+  end
+  def to_ast({op, _meta, [lhs, rhs]} = value) when op in @unary_operator do
+    J.unary_expression(op, true, to_ast(lhs), to_ast(rhs))
+  end
+  def to_ast(%Element.Js{content: content}) do
+    # txt_to_ast(content) # this should do variable name transformations on this js' identifiers, too
+    {:safe, content}
+  end
   def to_ast(%Element.Var{name: name}) do
     J.identifier(String.to_atom(name))
   end
   def to_ast(%Element.Obv{name: name}) do
     # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
     J.identifier(String.to_atom(name))
+  end
+  def to_ast(%Element.Ref{name: name}) do
+    # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
+    J.member_expresssion(J.identifier(:G), J.string(name), true)
   end
   def to_ast(%Element{tag: :_fragment, content: content}) do
     # for now, we're outputting an array by default, but I imagine that the obv replcement code
@@ -183,5 +196,10 @@ defmodule TimeMachine.Compiler do
     List.wrap(kw)
     |> Enum.map(fn k -> prefix <> to_string(k) end)
     |> Enum.join("")
+  end
+
+  defp txt_to_ast(txt) do
+    raise "doesn't work yet. I'll need to parse this into an calling node, then recreate ast in elixir"
+    # TODO: spawning a node process every single time will spawn a new process for each custom js - which could be optimised with some sort of websocket/dnode rpc thing
   end
 end

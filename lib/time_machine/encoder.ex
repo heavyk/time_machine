@@ -18,10 +18,10 @@ defimpl TimeMachine.Encoder, for: Tuple do
     value
   end
   def encode(value) do
-    if Macro.validate(value) == :ok do
-      value
-    else
-      raise Protocol.UndefinedError, protocol: TimeMachine.Encoder, value: value
+    case Macro.validate(value) do
+      :ok -> value
+      _ ->
+        raise Protocol.UndefinedError, protocol: TimeMachine.Encoder, value: value
     end
   end
 end
