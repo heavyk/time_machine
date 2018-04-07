@@ -287,6 +287,7 @@ defmodule CompilerTest do
     elements: TimeMachine.Elements
 
   import TestTemplates
+  alias TimeMachine.Elements
 
   doctest TimeMachine.Compiler
 
@@ -333,10 +334,10 @@ defmodule CompilerTest do
     assert %Marker.Element.Var{name: "num"} |> to_js() == "num"
     assert quote(do: %Marker.Element.Var{name: "num"} == 2) |> to_js() == "num==2"
     assert quote(do: %Marker.Element.Var{name: "num"} === %Marker.Element.Var{name: "num2"}) |> to_js() == "num===num2"
-    assert Marker.handle_logic(quote(do: ~o(num) === ~o(num2))) |> to_js() == "num===num2"
-    assert Marker.handle_logic(quote(do: ~o(num) === "a string")) |> to_js() == "num==='a string'"
-    assert Marker.handle_logic(quote(do: ~o(num) === 1234 && ~o(num2) === 1111)) |> to_js() == "num===1234&&num2===1111"
-    assert_raise RuntimeError, fn -> Marker.handle_logic(quote(do: (if ~v(num) === ~o(num), do: div "yay"))) |> to_js() end
+    assert Elements.handle_logic(quote(do: ~o(num) === ~o(num2))) |> to_js() == "num===num2"
+    assert Elements.handle_logic(quote(do: ~o(num) === "a string")) |> to_js() == "num==='a string'"
+    assert Elements.handle_logic(quote(do: ~o(num) === 1234 && ~o(num2) === 1111)) |> to_js() == "num===1234&&num2===1111"
+    assert_raise RuntimeError, fn -> Elements.handle_logic(quote(do: (if ~v(num) === ~o(num), do: div "yay"))) |> to_js() end
 
     # logic renders to js correctly
     assert tpl_logic_var() |> to_js() == "()=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"

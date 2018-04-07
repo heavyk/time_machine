@@ -132,10 +132,8 @@ defmodule TimeMachine.Elements do
 
   defmacro component(name, do: block) when is_atom(name) do
     template = String.to_atom(Atom.to_string(name) <> "__template")
-    mod = __CALLER__.module
-    use_elements = Module.get_attribute(mod, :marker_use_elements)
-    transformers = @transformers
-    {block, info} = Enum.reduce(transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
+    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
+    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       defmacro unquote(name)(content_or_attrs \\ nil, maybe_content \\ nil) do
         { attrs, content } = Marker.Element.normalize_args(content_or_attrs, maybe_content, __CALLER__)
@@ -158,18 +156,13 @@ defmodule TimeMachine.Elements do
 
   @doc "Define a new template"
   defmacro template(name, do: block) when is_atom(name) do
-    mod = __CALLER__.module
-    use_elements = Module.get_attribute(mod, :marker_use_elements)
-    transformers = Module.get_attribute(mod, :marker_transformers)
-    {block, info} = TimeMachine.Elements.handle_logic(block, [])
-    # {block, info} = Enum.reduce(transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
-    IO.puts "template: #{inspect name} info: #{inspect info}"
+    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
+    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
         content = unquote(block)
-        IO.puts "content: #{content}"
         template_ unquote(info), do: content
       end
     end
@@ -178,10 +171,8 @@ defmodule TimeMachine.Elements do
 
   @doc "panel is like a template, but we need to handle more than just the @ assigns"
   defmacro panel(name, do: block) when is_atom(name) do
-    mod = __CALLER__.module
-    use_elements = Module.get_attribute(mod, :marker_use_elements)
-    transformers = Module.get_attribute(mod, :marker_transformers)
-    {block, info} = Enum.reduce(transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
+    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
+    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns)) do
         unquote(use_elements)
