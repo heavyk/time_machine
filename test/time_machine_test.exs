@@ -60,6 +60,33 @@ defmodule TestTemplates do
     end
   end
 
+  template :tpl_logic_multi_var do
+    fragment do
+      if ~v(num) == 2 && ~v(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2 && ~v(mun) == 2, do: (div "yay")
+      div if ~v(num) != 2 && ~v(mun) == 2, do: "yay", else: "nope"
+      div if ~v(num) != 2 && ~v(mun) == 2, do: "yay"
+    end
+  end
+
+  template :tpl_logic_multi_obv_var do
+    fragment do
+      if ~v(num) == 2 && ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2 && ~o(mun) == 2, do: (div "yay")
+      div if ~v(num) != 2 && ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~v(num) != 2 && ~o(mun) == 2, do: "yay"
+    end
+  end
+
+  template :tpl_logic_multi_obv do
+    fragment do
+      if ~o(num) == 2 && ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~o(num) == 2 && ~o(mun) == 2, do: (div "yay")
+      div if ~o(num) != 2 && ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~o(num) != 2 && ~o(mun) == 2, do: "yay"
+    end
+  end
+
   template :tpl_logic_mixed do
     fragment do
       if ~o(oo) == 2, do: (div "yay"), else: (div "nope")
@@ -342,6 +369,10 @@ defmodule CompilerTest do
     # logic renders to js correctly
     assert tpl_logic_var() |> to_js() == "()=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"
     assert tpl_logic_obv() |> to_js() == "{num}=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
+    assert tpl_logic_multi_var() |> to_js() == "()=>[num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)]"
+    assert tpl_logic_multi_obv() |> to_js() == "{num,mun}=>[c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))]"
+    assert tpl_logic_multi_obv_var() |> to_js() == "{mun}=>[c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))]"
+
   end
 
 

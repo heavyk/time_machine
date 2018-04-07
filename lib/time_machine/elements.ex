@@ -85,7 +85,6 @@ defmodule TimeMachine.Elements do
         info = case t = Keyword.get(info, name) do
           nil -> Keyword.put(info, name, type)
           ^type -> info
-          # TODO: better error messages!!
           _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
         end
         {expr, info}
@@ -112,7 +111,6 @@ defmodule TimeMachine.Elements do
     {block, info}
   end
   def handle_logic(block) do
-    # shorthand: no scope info
     {block, _info} = handle_logic(block, [])
     block
   end
@@ -130,7 +128,8 @@ defmodule TimeMachine.Elements do
     vars
   end
 
-  defmacro component(name, do: block) when is_atom(name) do
+  @doc "component is a contained ... TODO - work all this out"
+  defmacro component(name, do: block) do
     template = String.to_atom(Atom.to_string(name) <> "__template")
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
@@ -155,7 +154,7 @@ defmodule TimeMachine.Elements do
   end
 
   @doc "Define a new template"
-  defmacro template(name, do: block) when is_atom(name) do
+  defmacro template(name, do: block) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
@@ -167,10 +166,9 @@ defmodule TimeMachine.Elements do
       end
     end
   end
-  # defmacro template(block), do: template_(block)
 
   @doc "panel is like a template, but we need to handle more than just the @ assigns"
-  defmacro panel(name, do: block) when is_atom(name) do
+  defmacro panel(name, do: block) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
