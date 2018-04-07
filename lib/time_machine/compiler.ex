@@ -112,8 +112,11 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_component, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
   end
-  def to_ast(%Element{tag: :_panel, content: content}) do
-    J.arrow_function_expression([J.identifier(:d)], [], to_ast(content))
+  def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
+    vars = TimeMachine.Elements.get_vars(content)
+    |> Enum.map(fn {k, v} -> J.identifier(k) end)
+    args = [J.object_pattern(vars)]
+    J.arrow_function_expression(args, [], to_ast(content))
   end
   def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
     vars = TimeMachine.Elements.get_vars(test_)
