@@ -72,7 +72,7 @@ for settings, add ability to edit sounds as well as the pomodoro settings
 
 ```js
 ({num}) => [
-  transform(this.num, (v) => v == 2 ? h('div', 'yay') : h('div', 'nope')),
-  h('div', transform(this.num, (v) => v == 2 ? 'yay' : 'nope'))
+  transform(num, (v) => v ? h('div', 'yay') : h('div', 'nope')),
+  h('div', transform(num, (v) => !v ? 'yay' : 'nope'))
 ]
 ```

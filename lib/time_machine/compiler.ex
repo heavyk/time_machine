@@ -72,7 +72,7 @@ defmodule TimeMachine.Compiler do
   def to_ast({op, _meta, [lhs, rhs]}) when op in @assignment_operator do
     J.assignment_expression(op, to_ast(lhs), to_ast(rhs))
   end
-  def to_ast({op, _meta, [lhs, rhs]} = value) when op in @unary_operator do
+  def to_ast({op, _meta, [lhs, rhs]}) when op in @unary_operator do
     J.unary_expression(op, true, to_ast(lhs), to_ast(rhs))
   end
   def to_ast(%Element.Js{content: content}) do
@@ -88,7 +88,7 @@ defmodule TimeMachine.Compiler do
   end
   def to_ast(%Element.Ref{name: name}) do
     # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
-    J.member_expresssion(J.identifier(:G), J.string(name), true)
+    J.member_expression(J.identifier(:G), to_ast(name), true)
   end
   def to_ast(%Element{tag: :_fragment, content: content}) do
     # for now, we're outputting an array by default, but I imagine that the obv replcement code
@@ -116,7 +116,7 @@ defmodule TimeMachine.Compiler do
     J.arrow_function_expression([J.identifier(:d)], [], to_ast(content))
   end
   def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    vars = Marker.get_vars(test_)
+    vars = TimeMachine.Elements.get_vars(test_)
     types = Keyword.values(vars)
     c = length(vars)
     stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))

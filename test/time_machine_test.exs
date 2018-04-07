@@ -10,7 +10,8 @@ end
 defmodule TestTemplates do
   use Marker,
     compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements
+    elements: TimeMachine.Elements,
+    imports: []
 
   template :tpl_test do
     div "test #{@val}"
@@ -287,8 +288,6 @@ defmodule CompilerTest do
 
   import TestTemplates
 
-  defp to_js(el), do: TimeMachine.Compiler.to_ast(el) |> ESTree.Tools.Generator.generate(false)
-
   doctest TimeMachine.Compiler
 
   test "generate js" do
@@ -343,4 +342,12 @@ defmodule CompilerTest do
     assert tpl_logic_var() |> to_js() == "()=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"
     assert tpl_logic_obv() |> to_js() == "{num}=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
   end
+
+
+  defp to_js(el) do
+    TimeMachine.Compiler.to_ast(el)
+    |> ESTree.Tools.Generator.generate(false)
+  end
+
+
 end
