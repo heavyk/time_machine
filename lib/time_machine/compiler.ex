@@ -86,6 +86,10 @@ defmodule TimeMachine.Compiler do
     # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
     J.identifier(String.to_atom(name))
   end
+  def to_ast(%Element.Condition{name: name}) do
+    # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
+    J.member_expression(.identifier(:G), to_ast(name), true)
+  end
   def to_ast(%Element.Ref{name: name}) do
     # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
     J.member_expression(J.identifier(:G), to_ast(name), true)
@@ -113,23 +117,25 @@ defmodule TimeMachine.Compiler do
     J.arrow_function_expression([], [], to_ast(content))
   end
   def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
-    vars = TimeMachine.Elements.get_vars(content)
+    obvs = TimeMachine.Elements.get_vars(content, :Obv)
     |> Enum.map(fn {k, v} -> J.identifier(k) end)
-    args = [J.object_pattern(vars)]
+    args = cond do
+      length(obvs) > 0 -> [J.object_pattern(obvs)]
+      true -> []
+    end
     J.arrow_function_expression(args, [], to_ast(content))
   end
   def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    vars = TimeMachine.Elements.get_vars(test_)
-    types = Keyword.values(vars)
-    c = length(vars)
+    obvs = TimeMachine.Elements.get_vars(test_, [:Obv, :Ref])
+    types = Keyword.values(obvs)
     stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
     cond do
-      :Obv in types and c > 1 ->
-        keys = Keyword.keys(vars) |> Enum.map(fn k -> J.identifier(k) end)
+      length(obvs) > 1 and :Obv in types ->
+        keys = Keyword.keys(obvs) |> Enum.map(fn k -> J.identifier(k) end)
         fun = J.arrow_function_expression(keys, [], stmt)
         J.call_expression(J.identifier(:c), [J.array_expression(keys), fun])
-      :Obv in types and c == 1 ->
-        {k, _v} = hd(vars)
+      length(obvs) == 1 and :Obv in types ->
+        {k, _v} = hd(obvs)
         fun = J.arrow_function_expression([J.identifier(k)], [], stmt)
         J.call_expression(J.identifier(:t), [J.identifier(k), fun])
       true ->

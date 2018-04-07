@@ -1,10 +1,7 @@
 
 ### current effort
-- figure out variable scoping:
-  - I like the idea of it being possible to have variable references (so that globals can be used)
-  - I also like that the variables a template has access to are always passed into the (pure) function
-- explore the idea of scopes sorta like a reference to `this` and the establishing "scope" will define all of itself from `this`, eg. `const h = this.h`
-  - explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
+
+- explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
   - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,.. etc.
 - make a "plugin" which creates all of the necessary bindings to the js lib.
 - make a js lib which is just an interface, where it can be hot swapped as necessary.

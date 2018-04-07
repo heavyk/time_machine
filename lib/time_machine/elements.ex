@@ -20,21 +20,25 @@ defmodule TimeMachine.Elements do
   #   IO.puts "yay! #{inspect left} #{inspect right}"
   # end
 
+  @doc "Obv is a real-time value local to its panel definition"
   defmacro sigil_o({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
     quote do: %Marker.Element.Obv{name: unquote(name)}
   end
 
+  @doc "Var is a constant value which exists in the environment - an environmental condition"
   defmacro sigil_v({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
     quote do: %Marker.Element.Var{name: unquote(name)}
   end
 
+  @doc "testing something out which is essentially a global obv which exists in its environment"
   defmacro sigil_g({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
     quote do: %Marker.Element.Ref{name: unquote(name)}
   end
 
+  @doc "inject a javascript expression directly into the dom at js compile-time*"
   defmacro sigil_j({:<<>>, _, [txt]}, _mods) when is_binary(txt) do
     txt = to_string(txt)
     quote do: %Marker.Element.Js{content: unquote(txt)}
@@ -116,10 +120,16 @@ defmodule TimeMachine.Elements do
   end
 
   @doc false
-  def get_vars(block) do
+  def get_vars(block, like \\ nil) do
     {_, vars} = Macro.postwalk(block, [], fn
-      {:%, _, [{:__aliases__, _, [:Marker, :Element, type]}, {:%{}, _, [name: name]}]} = expr, opts when type in [:Obv, :Var] ->
-        opts = Keyword.put(opts, String.to_atom(name), type)
+      {:%, _, [{:__aliases__, _, [:Marker, :Element, type]}, {:%{}, _, [name: name]}]} = expr, opts ->
+        opts = cond do
+          is_atom(like) && type == like ->
+            Keyword.put(opts, String.to_atom(name), type)
+          like == nil ->
+            Keyword.put(opts, String.to_atom(name), type)
+          true -> opts
+        end
         {expr, opts}
 
       expr, opts ->
@@ -172,7 +182,7 @@ defmodule TimeMachine.Elements do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
-      def unquote(name)(var!(assigns)) do
+      def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
         content = unquote(block)
