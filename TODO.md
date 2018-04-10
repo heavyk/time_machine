@@ -6,7 +6,7 @@
 - make a "plugin" which creates all of the necessary bindings to the js lib.
 - make a js lib which is just an interface, where it can be hot swapped as necessary.
   - ability to load more than one lib. they are cached so the idea is to make them monstrous and containing more than enough (since it's reused by everyone, it makes no difference). this allows the "apps" to be as little as possible
-- make possible the ability to add custom tags: eg. `MyModule opt1: true, opt2: "lala" do`
+- make possible the ability to add custom tags: eg. `MyModule opt1: true, opt2: "lala" do ... end`
   - those call `MyModule.__marker__(opt1: true, opt2: "lala")` - which then returns some `%Marker.Element{tag: :div, content: ...}`
 
 ### first steps
@@ -27,6 +27,7 @@
 
 - convert to an umbrella project (https://github.com/JakeBecker/elixir-ls)
 - when use TimeMachine.Compiler is invoked, add a hook to parse the `@css` module attributes.
+  - see `TimeMachine.Templates` -- https://gist.github.com/mprymek/8379066
 - TimeMachine.Compiler is just a shell which returns the element.
   -> instead return js and stuff (this requires the use of {:safe, str} to ensure things aren't double escaped)
 - create mapping from templates into roadtrip configuration

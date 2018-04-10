@@ -9,8 +9,18 @@ defmodule TimeMachine.Templates do
   end
 
   def __on_definition__(env, kind, name, args, _guards, _body) do
-    if kind == :def and template?(Atom.to_string(name)) and length(args) == 0 do
+    if kind == :def and length(args) == 0 and template?(Atom.to_string(name)) do
       Module.put_attribute(env.module, :templates, name)
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    mod = env.module
+    IO.puts "before compile #{mod}"
+    quote bind_quoted: [mod: mod] do
+      Module.register_attribute(mod, :css, accumulate: true)
+      IO.puts "register: #{mod}@css"
+      def css(), do: @css
     end
   end
 
@@ -33,19 +43,22 @@ defmodule TimeMachine do
     elements: TimeMachine.Elements,
     imports: [] # skip importing `component` and `template` from marker (we define our own ones in TimeMachine.Elements)
 
+
+  # borrow some ideas from this: https://dfilatov.github.io/vidom-ui
+
   # SOON: templates go here!
-  # template :toggle_button do
-  #   div ".content" do
-  #     button [onclick: @toggler!], "toggle"
-  #     div do
-  #       if @toggler! do
-  #         div "ON!"
-  #       else
-  #         div "off..."
-  #       end
-  #     end
-  #   end
-  # end
+  template :toggle_button do
+    div ".content" do
+      button [boink: ~o(toggler)], "toggle"
+      div do
+        if ~o(toggler) do
+          div "toggled: ON!"
+        else
+          div "toggled: off..."
+        end
+      end
+    end
+  end
 
   def hello do
     :world

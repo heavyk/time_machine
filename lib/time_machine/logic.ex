@@ -1,21 +1,34 @@
 
 
+# inline template loop
+defmodule TimeMachine.Logic.Loop do
+  defstruct tag: :_loop,
+    test: true,
+    do: nil, # does this when true
+    else: nil # this when test is false
+end
+
+# inline template logic
 defmodule TimeMachine.Logic.If do
   defstruct tag: :_if, test: true, do: nil, else: nil
 end
 
+# real-time updating variable
 defmodule TimeMachine.Logic.Obv do
   defstruct tag: :_obv, name: nil
 end
 
+# environmental variable (changes in the value are not propagated in real-time)
 defmodule TimeMachine.Logic.Var do
   defstruct tag: :_var, name: nil
 end
 
+# right now, this translates to G['var'] - which are variables local to the "plugin", such as `width`, and `height`
 defmodule TimeMachine.Logic.Ref do
   defstruct tag: :_ref, name: nil
 end
 
+# global observable
 defmodule TimeMachine.Logic.Condition do
   defstruct tag: :_cod, name: nil
 end
@@ -52,12 +65,14 @@ defmodule TimeMachine.Logic do
   def clean(%Element{tag: tag_, content: content_, attrs: attrs_}) do
     %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
   end
+  def clean(ast) do
+    Macro.update_meta(ast, fn (_meta) -> [] end)
+  end
   # negative emotion means I am misunderstanding what is rally happening
 
   def clean_quoted(ast) do
     # this is kind of an annoying case because we cannot really use Macro.expand,
     # because that will expand the if-statements into case statements.
-    #
     # so, instead, we have to do our own alias resolution
     Macro.postwalk(ast, fn
       {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
@@ -70,21 +85,12 @@ defmodule TimeMachine.Logic do
         end
         |> struct(map_)
 
-      # {:__aliases__, [alias: alias_], mod} when is_atom(alias_) and alias_ != false ->
-      #   mod = Module.split(alias_) |> Enum.map(&String.to_atom/1)
-      #   IO.puts "unalias: #{inspect alias_} -> #{inspect mod}"
-      #   {:__aliases__, [alias: false], mod}
+      {:__aliases__, [alias: alias_], mod} when is_atom(alias_) and alias_ != false ->
+        mod = Module.split(alias_) |> Enum.map(&String.to_atom/1)
+        {:__aliases__, [alias: false], mod}
 
       expr -> expr
     end)
     |> Macro.update_meta(fn (_meta) -> [] end)
-  end
-  # def clean_quoted({:__aliases__, [alias: alias_], mod}) when is_atom(alias_) do
-  #   {:__aliases__, [alias: false], Module.split(alias_)}
-  # end
-  def clean(ast) do
-    ast
-    |> Macro.update_meta(fn (_meta) -> [] end)
-    # |> Macro.expand(__ENV__)
   end
 end
