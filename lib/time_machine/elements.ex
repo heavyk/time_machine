@@ -1,4 +1,5 @@
 defmodule TimeMachine.Elements do
+  use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
     tags: [:div, :ul, :li, :a, :img, :input, :label, :button],
@@ -20,36 +21,46 @@ defmodule TimeMachine.Elements do
   #   IO.puts "yay! #{inspect left} #{inspect right}"
   # end
 
+  # defmacro __using__(opts) do
+  #   IO.puts "TimeMachine.Elements! #{inspect opts}"
+  # end
+
   @doc "Obv is a real-time value local to its panel definition"
   defmacro sigil_o({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
-    quote do: %Marker.Element.Obv{name: unquote(name)}
+    quote do: %TimeMachine.Logic.Obv{name: unquote(name)}
   end
 
   @doc "Var is a constant value which exists in the environment - an environmental condition"
   defmacro sigil_v({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
-    quote do: %Marker.Element.Var{name: unquote(name)}
+    quote do: %TimeMachine.Logic.Var{name: unquote(name)}
   end
 
   @doc "testing something out which is essentially a global obv which exists in its environment"
   defmacro sigil_g({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
-    quote do: %Marker.Element.Ref{name: unquote(name)}
+    quote do: %TimeMachine.Logic.Ref{name: unquote(name)}
+  end
+
+  @doc "transform this obv into a boolean"
+  defmacro sigil_b({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
+    raise "TODO???"
+    # name = to_string(ident)
+    # quote do: %TimeMachine.Logic.Transform{name:
+    #             %TimeMachine.Logic.Obv{name: unquote(name)},
+    #           fun: :boolean}
   end
 
   @doc "inject a javascript expression directly into the dom at js compile-time*"
   defmacro sigil_j({:<<>>, _, [txt]}, _mods) when is_binary(txt) do
     txt = to_string(txt)
-    quote do: %Marker.Element.Js{content: unquote(txt)}
+    quote do: %TimeMachine.Logic.Js{content: unquote(txt)}
   end
 
   @doc false
   def handle_logic(block, info) do
-    # TODO: swap the case for @var! is for js ... instead make ! ended variables the compile-time variables.
-    #       will be: @myvar! is for values to be inlined at compile-time. @myvar is just a normal js obv
-    # TODO: prewalk the tree, and in the case of convert outer expressions of variables into logic elements
-    # IO.puts "handle_logic: #{inspect block}"
+    # perhaps this could be moved to TimeMachine.Logic
     {block, info} = Macro.traverse(block, info, fn
       # PREWALK (going in)
       { :@, meta, [{ name, _, atom }]} = expr, info when is_atom(name) and is_atom(atom) ->
@@ -84,7 +95,7 @@ defmodule TimeMachine.Elements do
           :sigil_o -> :Obv
         end
         expr =
-          {:%, [], [{:__aliases__, [alias: false], [:Marker, :Element, type]}, {:%{}, [], [name: name]}]}
+          {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
         name = String.to_atom(name)
         info = case t = Keyword.get(info, name) do
           nil -> Keyword.put(info, name, type)
@@ -100,7 +111,8 @@ defmodule TimeMachine.Elements do
             do_ = Keyword.get(right, :do)
             else_ = Keyword.get(right, :else, nil)
             test_ = Macro.escape(left)
-            expr = quote do: %Marker.Element.If{test: unquote(test_),
+            |> Logic.clean_quoted()
+            expr = quote do: %TimeMachine.Logic.If{test: unquote(test_),
                                                   do: unquote(do_),
                                                 else: unquote(else_)}
             {expr, info}
@@ -121,46 +133,21 @@ defmodule TimeMachine.Elements do
 
   @doc false
   def get_vars(block, like \\ nil) do
+    # perhaps move this into TimeMachine.Logic
     {_, vars} = Macro.postwalk(block, [], fn
-      {:%, _, [{:__aliases__, _, [:Marker, :Element, type]}, {:%{}, _, [name: name]}]} = expr, opts ->
-        opts = cond do
-          is_atom(like) && type == like ->
-            Keyword.put(opts, String.to_atom(name), type)
-          like == nil ->
-            Keyword.put(opts, String.to_atom(name), type)
-          true -> opts
+      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, vars ->
+        vars = cond do
+          (is_atom(like) && type == like) ||
+          (is_list(like) && type in like) ||
+          (like == nil) -> Keyword.put(vars, String.to_atom(name), type)
+          true -> vars
         end
-        {expr, opts}
+        {expr, vars}
 
-      expr, opts ->
-        {expr, opts}
+      expr, vars ->
+        {expr, vars}
     end)
     vars
-  end
-
-  @doc "component is a contained ... TODO - work all this out"
-  defmacro component(name, do: block) do
-    template = String.to_atom(Atom.to_string(name) <> "__template")
-    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
-    quote do
-      defmacro unquote(name)(content_or_attrs \\ nil, maybe_content \\ nil) do
-        { attrs, content } = Marker.Element.normalize_args(content_or_attrs, maybe_content, __CALLER__)
-        content = quote do: List.wrap(unquote(content))
-        assigns = {:%{}, [], [{:__content__, content} | attrs]}
-        template = unquote(template)
-        quote do
-          unquote(__MODULE__).unquote(template)(unquote(assigns))
-        end
-      end
-      @doc false
-      def unquote(template)(var!(assigns)) do
-        unquote(use_elements)
-        _ = var!(assigns)
-        content = unquote(block)
-        component_ unquote(info), do: content
-      end
-    end
   end
 
   @doc "Define a new template"
@@ -187,6 +174,31 @@ defmodule TimeMachine.Elements do
         _ = var!(assigns)
         content = unquote(block)
         panel_ unquote(info), do: content
+      end
+    end
+  end
+
+  # @doc "component is a contained ... TODO - work all this out"
+  defmacro component(name, do: block) do
+    template = String.to_atom(Atom.to_string(name) <> "__template")
+    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
+    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
+    quote do
+      defmacro unquote(name)(content_or_attrs \\ nil, maybe_content \\ nil) do
+        { attrs, content } = Marker.Element.normalize_args(content_or_attrs, maybe_content, __CALLER__)
+        content = quote do: List.wrap(unquote(content))
+        assigns = {:%{}, [], [{:__content__, content} | attrs]}
+        template = unquote(template)
+        quote do
+          unquote(__MODULE__).unquote(template)(unquote(assigns))
+        end
+      end
+      @doc false
+      def unquote(template)(var!(assigns)) do
+        unquote(use_elements)
+        _ = var!(assigns)
+        content = unquote(block)
+        component_ unquote(info), do: content
       end
     end
   end

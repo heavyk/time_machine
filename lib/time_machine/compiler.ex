@@ -3,6 +3,7 @@
 
 defmodule TimeMachine.Compiler do
   alias Marker.Element
+  alias TimeMachine.Logic
   alias ESTree.Tools.Builder, as: J
   # alias ESTree.Tools.Generator
 
@@ -59,9 +60,15 @@ defmodule TimeMachine.Compiler do
   def to_ast(value) when is_literal(value) do
     J.literal(value)
   end
-  def to_ast({:%, [], [{:__aliases__, _, _} = aliases_, {:%{}, _, map_}]}) do
-    # this is a strange case where a struct is in elixir ast
-    to_ast(Map.new(Keyword.put(map_, :__struct__, Macro.expand(aliases_, __ENV__))))
+
+  def to_ast({:%, [], [aliases_, {:%{}, _, map_}]}) do
+    {:__aliases__, [alias: mod_a], mod} = aliases_
+    mod = cond do
+      mod_a == false && is_list(mod) -> Module.concat(mod)
+      mod_a != false && is_atom(mod_a) -> mod_a
+    end
+    struct(mod, map_)
+    |> to_ast()
   end
   def to_ast({op, _meta, [lhs, rhs]}) when op in @logical_operator do
     J.logical_expression(op, to_ast(lhs), to_ast(rhs))
@@ -75,24 +82,43 @@ defmodule TimeMachine.Compiler do
   def to_ast({op, _meta, [lhs, rhs]}) when op in @unary_operator do
     J.unary_expression(op, true, to_ast(lhs), to_ast(rhs))
   end
-  def to_ast(%Element.Js{content: content}) do
-    # txt_to_ast(content) # this should do variable name transformations on this js' identifiers, too
+  def to_ast(%Logic.Js{content: content}) do
+    content = txt_to_ast(content) # this should do variable name transformations on this js' identifiers, too
     {:safe, content}
   end
-  def to_ast(%Element.Var{name: name}) do
-    J.identifier(String.to_atom(name))
+  def to_ast(%Logic.Var{name: name}) do
+    name # Namespaceman.get(el)
+    |> String.to_atom()
+    |> J.identifier()
   end
-  def to_ast(%Element.Obv{name: name}) do
-    # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
-    J.identifier(String.to_atom(name))
+  def to_ast(%Logic.Obv{name: name}) do
+    name # Namespaceman.get(el)
+    |> String.to_atom()
+    |> J.identifier()
   end
-  def to_ast(%Element.Condition{name: name}) do
-    # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
-    J.member_expression(.identifier(:G), to_ast(name), true)
+  def to_ast(%Logic.Condition{name: name}) do
+    name # Namespaceman.get(el)
+    |> String.to_atom()
+    |> J.identifier()
   end
-  def to_ast(%Element.Ref{name: name}) do
-    # eventually, I'll need to know the inside of the transform fn name of the obv to render it correctly
+  def to_ast(%Logic.Ref{name: name}) do
     J.member_expression(J.identifier(:G), to_ast(name), true)
+  end
+
+  def to_ast(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
+    obvs = TimeMachine.Elements.get_vars(test_, [:Obv, :Ref])
+    stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
+    case length(obvs) do
+      0 -> stmt
+      1 ->
+        {k, _v} = hd(obvs)
+        fun = J.arrow_function_expression([J.identifier(k)], [], stmt)
+        J.call_expression(J.identifier(:t), [J.identifier(k), fun])
+      _ ->
+        keys = Keyword.keys(obvs) |> Enum.map(fn k -> J.identifier(k) end)
+        fun = J.arrow_function_expression(keys, [], stmt)
+        J.call_expression(J.identifier(:c), [J.array_expression(keys), fun])
+    end
   end
   def to_ast(%Element{tag: :_fragment, content: content}) do
     # for now, we're outputting an array by default, but I imagine that the obv replcement code
@@ -116,31 +142,15 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_component, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
   end
-  def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
+  def to_ast(%Element{tag: :_panel, content: content, attrs: _info}) do
+    # TODO: do something with "info" .. TBD :)
     obvs = TimeMachine.Elements.get_vars(content, :Obv)
-    |> Enum.map(fn {k, v} -> J.identifier(k) end)
+    |> Enum.map(fn {k, _} -> J.identifier(k) end)
     args = cond do
       length(obvs) > 0 -> [J.object_pattern(obvs)]
       true -> []
     end
     J.arrow_function_expression(args, [], to_ast(content))
-  end
-  def to_ast(%Element.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    obvs = TimeMachine.Elements.get_vars(test_, [:Obv, :Ref])
-    types = Keyword.values(obvs)
-    stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
-    cond do
-      length(obvs) > 1 and :Obv in types ->
-        keys = Keyword.keys(obvs) |> Enum.map(fn k -> J.identifier(k) end)
-        fun = J.arrow_function_expression(keys, [], stmt)
-        J.call_expression(J.identifier(:c), [J.array_expression(keys), fun])
-      length(obvs) == 1 and :Obv in types ->
-        {k, _v} = hd(obvs)
-        fun = J.arrow_function_expression([J.identifier(k)], [], stmt)
-        J.call_expression(J.identifier(:t), [J.identifier(k), fun])
-      true ->
-        stmt
-    end
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
     str = Enum.reduce(attrs, "", fn {k, v}, acc ->
@@ -208,7 +218,7 @@ defmodule TimeMachine.Compiler do
   end
 
   defp txt_to_ast(txt) do
-    raise "doesn't work yet. I'll need to parse this into an calling node, then recreate ast in elixir"
-    # TODO: spawning a node process every single time will spawn a new process for each custom js - which could be optimised with some sort of websocket/dnode rpc thing
+    # TODO: somehow parse the js into elixir ast. I think the easiest will be to spawn node. or call node as a rpc host which can do it.
+    txt
   end
 end
