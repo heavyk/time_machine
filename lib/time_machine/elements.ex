@@ -131,10 +131,16 @@ defmodule TimeMachine.Elements do
     block
   end
 
+  # designing a robot to be unhelpful, I think, would be more difficult technically, than to design a helpful one.
+
   @doc false
   def get_vars(block, like \\ nil) do
     # perhaps move this into TimeMachine.Logic
     {_, vars} = Macro.postwalk(block, [], fn
+      {:__aliases__, [alias: alias_], _mod}, vars when is_atom(alias_) and alias_ != false ->
+        # undo any aliases (is this necessary?)
+        {{:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}, vars}
+
       {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, vars ->
         vars = cond do
           (is_atom(like) && type == like) ||

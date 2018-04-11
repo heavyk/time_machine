@@ -69,6 +69,8 @@ defmodule TimeMachine.Logic do
     Macro.update_meta(ast, fn (_meta) -> [] end)
   end
   # negative emotion means I am misunderstanding what is rally happening
+  # negative emotion also means that I have summoned more than I am allowing right now
+
 
   def clean_quoted(ast) do
     # this is kind of an annoying case because we cannot really use Macro.expand,
@@ -86,8 +88,7 @@ defmodule TimeMachine.Logic do
         |> struct(map_)
 
       {:__aliases__, [alias: alias_], mod} when is_atom(alias_) and alias_ != false ->
-        mod = Module.split(alias_) |> Enum.map(&String.to_atom/1)
-        {:__aliases__, [alias: false], mod}
+        {:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}
 
       expr -> expr
     end)

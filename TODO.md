@@ -2,12 +2,36 @@
 ### current effort
 
 - explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
-  - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,.. etc.
-- make a "plugin" which creates all of the necessary bindings to the js lib.
+  - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,v.. etc.
+```js
+// this is a relatively simplistic example of its basic mechanics: adding to or subtracting 1 from a number.
+// this is incorrect, actually. there is confusion over whether num is an obv or a condition
+// the template has it as an obv, but the return statement (and the fact that the templates are defined in the function)
+// makes them conditions (global obvs).
+function button_adder (G, {cod}) {
+  const {h, t, v} = G
+  let num = v(11)
+  let tpl_cod = () => h('div', 'condition is:', cod)
+  let tpl_obv = {num} => h('div', 'num is:', num)
+  let tpl_boink = {num} => h('div',
+    h('button', {boink: t(num, (num) => num + 1)}, 'num++'),
+    h('button', {boink: t(num, (num) => num - 1)}, 'num--')
+  )
+  // ...
+  return () => h('div',
+    h('h1', 'button adder!'),
+    tpl_obv({num}),
+    tpl_boink({num})
+  )
+}
+```
+- make a "plugin" which creates all of the necessary bindings to the js lib. (min: h/s/t/c)
+- render a simple hello world in phoenix that invokes the binding.
 - make a js lib which is just an interface, where it can be hot swapped as necessary.
   - ability to load more than one lib. they are cached so the idea is to make them monstrous and containing more than enough (since it's reused by everyone, it makes no difference). this allows the "apps" to be as little as possible
 - make possible the ability to add custom tags: eg. `MyModule opt1: true, opt2: "lala" do ... end`
   - those call `MyModule.__marker__(opt1: true, opt2: "lala")` - which then returns some `%Marker.Element{tag: :div, content: ...}`
+  - it could be kind of cool if `use TimeMachine.Logic` was all that was needed to make it awesome. (what is "awesome"? pfft. hell if I know, yet)
 
 ### first steps
 
