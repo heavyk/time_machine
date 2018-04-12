@@ -87,37 +87,34 @@ defmodule TimeMachine.Compiler do
     {:safe, content}
   end
   def to_ast(%Logic.Var{name: name}) do
-    name # Namespaceman.get(el)
-    |> String.to_atom()
-    |> J.identifier()
+    # Namespaceman.get(el)
+    id(name)
   end
   def to_ast(%Logic.Obv{name: name}) do
-    name # Namespaceman.get(el)
-    |> String.to_atom()
-    |> J.identifier()
+    # Namespaceman.get(el)
+    id(name)
   end
   def to_ast(%Logic.Condition{name: name}) do
-    name # Namespaceman.get(el)
-    |> String.to_atom()
-    |> J.identifier()
+    # Namespaceman.get(el)
+    id(name)
   end
   def to_ast(%Logic.Ref{name: name}) do
-    J.member_expression(J.identifier(:G), to_ast(name), true)
+    J.member_expression(id(:G), to_ast(name), true)
   end
 
   def to_ast(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    obvs = TimeMachine.Elements.get_vars(test_, [:Obv, :Ref])
+    obvs = TimeMachine.Elements.get_ids(test_, [:Obv, :Ref])
     stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
     case length(obvs) do
       0 -> stmt
       1 ->
         {k, _v} = hd(obvs)
-        fun = J.arrow_function_expression([J.identifier(k)], [], stmt)
-        J.call_expression(J.identifier(:t), [J.identifier(k), fun])
+        fun = J.arrow_function_expression([id(k)], [], stmt)
+        J.call_expression(id(:t), [id(k), fun])
       _ ->
-        keys = Keyword.keys(obvs) |> Enum.map(fn k -> J.identifier(k) end)
+        keys = id(obvs)
         fun = J.arrow_function_expression(keys, [], stmt)
-        J.call_expression(J.identifier(:c), [J.array_expression(keys), fun])
+        J.call_expression(id(:c), [J.array_expression(keys), fun])
     end
   end
   def to_ast(%Element{tag: :_fragment, content: content}) do
@@ -127,9 +124,9 @@ defmodule TimeMachine.Compiler do
     to_ast(List.wrap(content))
   end
   def to_ast(%Element{tag: :_template, content: content, attrs: attrs}) do
-    obvs = Enum.reduce(attrs, [], fn {k, v}, acc ->
+    obvs = Enum.reduce(attrs[:ids], [], fn {k, v}, acc ->
       case v do
-        :Obv -> [J.identifier(k) | acc]
+        :Obv -> [id(k) | acc]
         _ -> acc
       end
     end)
@@ -142,15 +139,35 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_component, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
   end
-  def to_ast(%Element{tag: :_panel, content: content, attrs: _info}) do
-    # TODO: do something with "info" .. TBD :)
-    obvs = TimeMachine.Elements.get_vars(content, :Obv)
-    |> Enum.map(fn {k, _} -> J.identifier(k) end)
+  def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
+    lib = [:h,:t,:c,:v] # TODO: for now, we define all of them, but in the future, only defnine the ones that are required
+    cods = []
+    lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
+    cod_decl = case length(cods) do
+      0 -> []
+      _ -> [J.variable_declarator(J.object_pattern(id(cods)), id(:config))]
+    end
+    impure_tpls = [] # TODO: define all non-pure inner templates inside of the panel here...
+    obvs = TimeMachine.Elements.get_ids(content, :Obv)
+    |> id()
+    # TODO: get_ids(content, :Var) -- also for each non-pure template, as well..
+    # so, to get this doing well,
     args = cond do
       length(obvs) > 0 -> [J.object_pattern(obvs)]
       true -> []
     end
-    J.arrow_function_expression(args, [], to_ast(content))
+    # out_fn = J.arrow_function_expression(args, [], to_ast(content))
+    J.function_declaration(
+      id(info[:name]),
+      [J.object_pattern([id(:G),id(:config)])],
+      [],
+      J.block_statement([
+        J.variable_declaration(lib_decl ++ cod_decl ++ impure_tpls, :const),
+        J.return_statement(to_ast(content))
+      ]),
+      true,
+      false
+    )
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
     str = Enum.reduce(attrs, "", fn {k, v}, acc ->
@@ -166,7 +183,7 @@ defmodule TimeMachine.Compiler do
     args = if is_nil(attrs),   do: [tag], else: [tag, attrs]
     args = if is_nil(content), do: args,  else: args ++ do_args(content)
 
-    J.call_expression(J.identifier(:h), args)
+    J.call_expression(id(:h), args)
   end
 
   defp do_args(args) do
@@ -201,11 +218,11 @@ defmodule TimeMachine.Compiler do
     end
   end
   defp do_attrs([{key, value} | rest], acc) when is_literal(value) do
-    do_attrs(rest, acc ++ [J.property(J.identifier(key), J.literal(value))])
+    do_attrs(rest, acc ++ [J.property(id(key), J.literal(value))])
   end
   defp do_attrs([{key, value} | rest], acc) do
     value = to_ast(value)
-    do_attrs(rest, acc ++ [J.property(J.identifier(key), value)])
+    do_attrs(rest, acc ++ [J.property(id(key), value)])
   end
   defp do_attrs([], acc) do
     acc
@@ -215,6 +232,15 @@ defmodule TimeMachine.Compiler do
     List.wrap(kw)
     |> Enum.map(fn k -> prefix <> to_string(k) end)
     |> Enum.join("")
+  end
+
+  defp id(str) when is_binary(str), do: J.identifier(String.to_atom(str))
+  defp id(atom) when is_atom(atom), do: J.identifier(atom)
+  defp id(atoms) when is_list(atoms) and is_atom(hd(atoms)) do
+    Enum.map(atoms, fn k -> J.identifier(k) end)
+  end
+  defp id(kvs) when is_list(kvs) do
+    Enum.map(kvs, fn {k, _v} -> J.identifier(k) end)
   end
 
   defp txt_to_ast(txt) do

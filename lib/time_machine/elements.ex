@@ -61,6 +61,7 @@ defmodule TimeMachine.Elements do
   @doc false
   def handle_logic(block, info) do
     # perhaps this could be moved to TimeMachine.Logic
+    info = Keyword.put_new(info, :ids, [])
     {block, info} = Macro.traverse(block, info, fn
       # PREWALK (going in)
       { :@, meta, [{ name, _, atom }]} = expr, info when is_atom(name) and is_atom(atom) ->
@@ -97,17 +98,19 @@ defmodule TimeMachine.Elements do
         expr =
           {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
         name = String.to_atom(name)
-        info = case t = Keyword.get(info, name) do
-          nil -> Keyword.put(info, name, type)
-          ^type -> info
+        ids = info[:ids]
+        ids = case t = Keyword.get(ids, name) do
+          nil -> Keyword.put(ids, name, type)
+          ^type -> ids
           _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
         end
+        info = Keyword.put(info, :ids, ids)
         {expr, info}
 
       { :if, _meta, [left, right]} = expr, info ->
-        vars = get_vars(expr)
+        ids = get_ids(expr)
         cond do
-          length(vars) > 0 ->
+          length(ids) > 0 ->
             do_ = Keyword.get(right, :do)
             else_ = Keyword.get(right, :else, nil)
             test_ = Macro.escape(left)
@@ -134,32 +137,39 @@ defmodule TimeMachine.Elements do
   # designing a robot to be unhelpful, I think, would be more difficult technically, than to design a helpful one.
 
   @doc false
-  def get_vars(block, like \\ nil) do
+  def get_ids(block, like \\ nil) do
     # perhaps move this into TimeMachine.Logic
-    {_, vars} = Macro.postwalk(block, [], fn
-      {:__aliases__, [alias: alias_], _mod}, vars when is_atom(alias_) and alias_ != false ->
+    {_, ids} = Macro.postwalk(block, [], fn
+      {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false ->
         # undo any aliases (is this necessary?)
-        {{:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}, vars}
+        {{:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}, ids}
 
-      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, vars ->
-        vars = cond do
+      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, ids ->
+        ids = cond do
           (is_atom(like) && type == like) ||
           (is_list(like) && type in like) ||
-          (like == nil) -> Keyword.put(vars, String.to_atom(name), type)
-          true -> vars
+          (like == nil) -> Keyword.put(ids, String.to_atom(name), type)
+          true -> ids
         end
-        {expr, vars}
+        {expr, ids}
 
-      expr, vars ->
-        {expr, vars}
+      expr, ids ->
+        {expr, ids}
     end)
-    vars
+    ids
+  end
+
+  def get_externs(block) do
+    get_ids(block, [:Var, :Condition])
+  end
+  def get_externs(block) do
+    get_ids(block, [:Var, :Condition])
   end
 
   @doc "Define a new template"
   defmacro template(name, do: block) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
+    {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
@@ -173,7 +183,7 @@ defmodule TimeMachine.Elements do
   @doc "panel is like a template, but we need to handle more than just the @ assigns"
   defmacro panel(name, do: block) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
+    {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
@@ -188,7 +198,7 @@ defmodule TimeMachine.Elements do
   defmacro component(name, do: block) do
     template = String.to_atom(Atom.to_string(name) <> "__template")
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, []}, fn t, {blk, info} -> t.(blk, info) end)
+    {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       defmacro unquote(name)(content_or_attrs \\ nil, maybe_content \\ nil) do
         { attrs, content } = Marker.Element.normalize_args(content_or_attrs, maybe_content, __CALLER__)

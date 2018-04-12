@@ -8,12 +8,21 @@ defmodule TimeMachine.Logic.Loop do
     else: nil # this when test is false
 end
 
+defmodule TimeMachine.Logic.Loop do
+  defstruct tag: :_each,
+    ref: nil,
+    do: nil, # does this when true
+    else: nil # this when test is false
+end
+
+
+
 # inline template logic
 defmodule TimeMachine.Logic.If do
   defstruct tag: :_if, test: true, do: nil, else: nil
 end
 
-# real-time updating variable
+# local to the template, real-time updating value
 defmodule TimeMachine.Logic.Obv do
   defstruct tag: :_obv, name: nil
 end
@@ -24,11 +33,13 @@ defmodule TimeMachine.Logic.Var do
 end
 
 # right now, this translates to G['var'] - which are variables local to the "plugin", such as `width`, and `height`
+# should be: a source of array, such as an ObservableArray or a stream of sorts. (also, should be local??)
+# not sure about this still...
 defmodule TimeMachine.Logic.Ref do
   defstruct tag: :_ref, name: nil
 end
 
-# global observable
+# environmental observable
 defmodule TimeMachine.Logic.Condition do
   defstruct tag: :_cod, name: nil
 end
@@ -40,6 +51,8 @@ end
 
 # wrap around piece of js"
 # TODO: finish me up.
+# I want that there are expressions, blocks,
+# and wraps... which are blocks with something on each side? (I don't really see th value at he time right now..)
 defmodule TimeMachine.Logic.JsWrap do
   defstruct tag: :__js, left: nil, right: nil
 end

@@ -183,6 +183,7 @@ defmodule ElementsTest do
 
   test "templates" do
     assert (tpl_test([val: 1234])) == %E{tag: :_template,
+                                         attrs: [ids: [], name: :tpl_test],
                                          content: %E{tag: :div,
                                                      content: "test 1234"}}
   end
@@ -190,21 +191,22 @@ defmodule ElementsTest do
   test "fragments" do
     assert tpl_one_item_frag() == %E{tag: :_template, content: %E{tag: :_fragment, content:
         %E{tag: :div, content: "test"}
-      }}
+      }, attrs: [ids: [], name: :tpl_one_item_frag]}
 
     assert (tpl_inner_frag([num: 11])) == %E{tag: :_template, content: %E{tag: :_fragment, content: [
         %E{tag: :div, content: 1},
         %E{tag: :div, content: 1.1},
         %E{tag: :div, content: 11},
         %E{tag: :div, content: 11.1}
-      ]}}
+      ]}, attrs: [ids: [], name: :tpl_inner_frag]}
   end
 
   test "components" do
     assert (foto size: 180, id: "lol", title: "an image") ==
       %E{tag: :_component, content: %E{tag: :img, attrs: [src: "/i/m/lol",
                                                           title: "an image",
-                                                          alt: "an image"]}}
+                                                          alt: "an image"]},
+         attrs: [ids: [], name: :foto]}
   end
 
   test "static logic" do
@@ -215,7 +217,7 @@ defmodule ElementsTest do
         %E{content: "yay", tag: :div},
         %E{content: "yay", tag: :div}
       ], tag: :_fragment
-    }, tag: :_template}
+    }, tag: :_template, attrs: [ids: [], name: :tpl_logic_static]}
 
     assert tpl_logic_static([num: 2]) == %E{content:
       %E{content: [
@@ -224,18 +226,18 @@ defmodule ElementsTest do
         %E{content: "nope", tag: :div},
         %E{content: nil, tag: :div}
       ], tag: :_fragment
-    }, tag: :_template}
+    }, tag: :_template, attrs: [ids: [], name: :tpl_logic_static]}
   end
 
   test "obv/var logic" do
     assert Logic.clean(tpl_logic_obv()) == Logic.clean(%E{content:
       %E{content: [
         %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
-                             do: %E{content: "yay", tag: :div},
-                           else: %E{content: "nope", tag: :div}},
+                              do: %E{content: "yay", tag: :div},
+                            else: %E{content: "nope", tag: :div}},
         %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
-                             do: %E{content: "yay", tag: :div},
-                           else: nil},
+                              do: %E{content: "yay", tag: :div},
+                            else: nil},
         %E{attrs: [],
                         content: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} != 2),
                                                     do: "yay",
@@ -247,7 +249,7 @@ defmodule ElementsTest do
                                                     else: nil},
                         tag: :div}
       ], tag: :_fragment
-    }, tag: :_template, attrs: [num: :Obv]})
+    }, tag: :_template, attrs: [ids: [num: :Obv], name: :tpl_logic_obv]})
 
     assert Logic.clean(tpl_logic_var()) == Logic.clean(%E{content:
       %E{content: [
@@ -268,7 +270,7 @@ defmodule ElementsTest do
                                                     else: nil},
                         tag: :div}
       ], tag: :_fragment
-    }, tag: :_template, attrs: [num: :Var]})
+    }, tag: :_template, attrs: [ids: [num: :Var], name: :tpl_logic_var]})
 
     assert Logic.clean(tpl_logic_mixed([num: 2])) == Logic.clean(%E{content:
       %E{content: [
@@ -312,7 +314,7 @@ defmodule ElementsTest do
                         tag: :div},
         %E{content: nil, tag: :div}
       ], tag: :_fragment
-    }, tag: :_template, attrs: [vv: :Var, oo: :Obv]})
+    }, tag: :_template, attrs: [ids: [vv: :Var, oo: :Obv], name: :tpl_logic_mixed]})
   end
 end
 
