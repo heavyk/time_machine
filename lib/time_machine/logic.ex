@@ -8,11 +8,11 @@ defmodule TimeMachine.Logic.Loop do
     else: nil # this when test is false
 end
 
-defmodule TimeMachine.Logic.Loop do
+defmodule TimeMachine.Logic.Each do
   defstruct tag: :_each,
-    ref: nil,
-    do: nil, # does this when true
-    else: nil # this when test is false
+    obv: nil,
+    do: nil, # does this when obv truthy or length > 0
+  else: nil # this when obv is falsy or length zero
 end
 
 
@@ -81,14 +81,14 @@ defmodule TimeMachine.Logic do
   def clean(ast) do
     Macro.update_meta(ast, fn (_meta) -> [] end)
   end
-  # negative emotion means I am misunderstanding what is rally happening
+  # negative emotion speaks to my misunderstanding what is rally going on
   # negative emotion also means that I have summoned more than I am allowing right now
 
 
+  @doc "resolve aliases & remove any meta"
   def clean_quoted(ast) do
-    # this is kind of an annoying case because we cannot really use Macro.expand,
-    # because that will expand the if-statements into case statements.
-    # so, instead, we have to do our own alias resolution
+    # we cannot really use Macro.expand, because that will expand the if-statements into case statements.
+    # so, instead, we do our own alias resolution
     Macro.postwalk(ast, fn
       {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
         cond do
@@ -100,21 +100,19 @@ defmodule TimeMachine.Logic do
         end
         |> struct(map_)
 
-      {:__aliases__, [alias: alias_], mod} when is_atom(alias_) and alias_ != false ->
-        {:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}
+      {:__aliases__, [alias: alias_], _mod} when is_atom(alias_) and alias_ != false ->
+        {:__aliases__, [alias: false], mod_list(alias_)}
 
       expr -> expr
     end)
     |> Macro.update_meta(fn (_meta) -> [] end)
   end
 
-  @doc false
+  @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom]"
   def get_ids(block, like \\ nil) do
-    # perhaps move this into TimeMachine.Logic
     {_, ids} = Macro.postwalk(block, [], fn
-      {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false ->
-        # undo any aliases (is this necessary?)
-        {{:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}, ids}
+      {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false -> # is this necessary?
+        {{:__aliases__, [alias: false], mod_list(alias_)}, ids}
 
       {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, ids ->
         ids = cond do
@@ -125,16 +123,17 @@ defmodule TimeMachine.Logic do
         end
         {expr, ids}
 
+      {:=, _, [lhs, rhs]} = expr, ids ->
+        IO.puts "assignment: #{inspect lhs} #{inspect rhs}"
+        {expr, ids}
+
       expr, ids ->
         {expr, ids}
     end)
     ids
   end
 
-  def get_externs(block) do
-    get_ids(block, [:Var, :Condition])
-  end
-  def get_externs(block) do
-    get_ids(block, [:Var, :Condition])
+  defp mod_list(alias_) do
+    Module.split(alias_) |> Enum.map(&String.to_atom/1)
   end
 end

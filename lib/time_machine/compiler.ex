@@ -141,28 +141,33 @@ defmodule TimeMachine.Compiler do
   end
   def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
     lib = [:h,:t,:c,:v] # TODO: for now, we define all of them, but in the future, only defnine the ones that are required
-    cods = []
+    cods = Logic.get_ids(content, [:Condition, :Var]) # TODO: also need to do this for each inner impure_tpl as well.
     lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
     cod_decl = case length(cods) do
       0 -> []
-      _ -> [J.variable_declarator(J.object_pattern(id(cods)), id(:config))]
+      _ -> [J.variable_declarator(J.object_pattern(id(cods)), id(:C))]
     end
     impure_tpls = [] # TODO: define all non-pure inner templates inside of the panel here...
+    # TODO: need a way to find inner template references (and subquently their cod/var)
     obvs = Logic.get_ids(content, :Obv)
-    |> id()
+    obv_init = [] # TODO: some way of finding assignment expressions... eg. Logic.get_init(content)
+    obv_decl = case length(obvs) do
+      0 -> []
+      _ -> Enum.map(obvs, fn {k, _v} -> J.variable_declarator(id(k), val(Keyword.get(obv_init, k))) end)
+    end
     # TODO: get_ids(content, :Var) -- also for each non-pure template, as well..
     # so, to get this doing well,
-    args = cond do
-      length(obvs) > 0 -> [J.object_pattern(obvs)]
-      true -> []
-    end
+    # args = cond do
+    #   length(obvs) > 0 -> [J.object_pattern(obvs)]
+    #   true -> []
+    # end
     # out_fn = J.arrow_function_expression(args, [], to_ast(content))
     J.function_declaration(
       id(info[:name]),
-      [J.object_pattern([id(:G),id(:config)])],
+      [J.object_pattern([id(:G),id(:C)])],
       [],
       J.block_statement([
-        J.variable_declaration(lib_decl ++ cod_decl ++ impure_tpls, :const),
+        J.variable_declaration(lib_decl ++ cod_decl ++ obv_decl ++ impure_tpls, :const),
         J.return_statement(to_ast(content))
       ]),
       true,
@@ -170,11 +175,16 @@ defmodule TimeMachine.Compiler do
     )
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do
+    keyword_prefixer = fn (kw, prefix) ->
+      List.wrap(kw)
+      |> Enum.map(fn k -> prefix <> to_string(k) end)
+      |> Enum.join("")
+    end
     str = Enum.reduce(attrs, "", fn {k, v}, acc ->
       case k do
-        :class -> acc <> keyword_prefixer(v, ".")
-        :c -> acc <> keyword_prefixer(v, ".")
-        :id -> acc <> keyword_prefixer(v, "#")
+        :class -> acc <> keyword_prefixer.(v, ".")
+        :c -> acc <> keyword_prefixer.(v, ".")
+        :id -> acc <> keyword_prefixer.(v, "#")
         _ -> acc
       end
     end)
@@ -210,28 +220,22 @@ defmodule TimeMachine.Compiler do
       end
     end)
     if length(attrs) > 0 do
-      :lists.reverse(attrs)
-      |> do_attrs([])
-      |> J.object_pattern()
+      :lists.reverse(attrs) |> obj()
     else
       nil
     end
   end
-  defp do_attrs([{key, value} | rest], acc) when is_literal(value) do
-    do_attrs(rest, acc ++ [J.property(id(key), J.literal(value))])
-  end
-  defp do_attrs([{key, value} | rest], acc) do
-    value = to_ast(value)
-    do_attrs(rest, acc ++ [J.property(id(key), value)])
-  end
-  defp do_attrs([], acc) do
-    acc
-  end
 
-  defp keyword_prefixer(kw, prefix) do
-    List.wrap(kw)
-    |> Enum.map(fn k -> prefix <> to_string(k) end)
-    |> Enum.join("")
+  defp obj(kvs), do: obj(kvs, [])
+  defp obj([{key, value} | rest], acc) when is_literal(value) do
+    obj(rest, acc ++ [J.property(id(key), J.literal(value))])
+  end
+  defp obj([{key, value} | rest], acc) do
+    value = to_ast(value)
+    obj(rest, acc ++ [J.property(id(key), value)])
+  end
+  defp obj([], acc) do
+    J.object_pattern(acc)
   end
 
   defp id(str) when is_binary(str), do: J.identifier(String.to_atom(str))
@@ -241,6 +245,14 @@ defmodule TimeMachine.Compiler do
   end
   defp id(kvs) when is_list(kvs) do
     Enum.map(kvs, fn {k, _v} -> J.identifier(k) end)
+  end
+
+  defp val(v \\ nil) do
+    args = case v do
+      nil -> []
+      _ -> [to_ast(v)]
+    end
+    J.call_expression(id(:v), args)
   end
 
   defp txt_to_ast(txt) do
