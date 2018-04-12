@@ -107,4 +107,34 @@ defmodule TimeMachine.Logic do
     end)
     |> Macro.update_meta(fn (_meta) -> [] end)
   end
+
+  @doc false
+  def get_ids(block, like \\ nil) do
+    # perhaps move this into TimeMachine.Logic
+    {_, ids} = Macro.postwalk(block, [], fn
+      {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false ->
+        # undo any aliases (is this necessary?)
+        {{:__aliases__, [alias: false], Module.split(alias_) |> Enum.map(&String.to_atom/1)}, ids}
+
+      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, ids ->
+        ids = cond do
+          (is_atom(like) && type == like) ||
+          (is_list(like) && type in like) ||
+          (like == nil) -> Keyword.put(ids, String.to_atom(name), type)
+          true -> ids
+        end
+        {expr, ids}
+
+      expr, ids ->
+        {expr, ids}
+    end)
+    ids
+  end
+
+  def get_externs(block) do
+    get_ids(block, [:Var, :Condition])
+  end
+  def get_externs(block) do
+    get_ids(block, [:Var, :Condition])
+  end
 end

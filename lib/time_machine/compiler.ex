@@ -103,7 +103,7 @@ defmodule TimeMachine.Compiler do
   end
 
   def to_ast(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    obvs = TimeMachine.Elements.get_ids(test_, [:Obv, :Ref])
+    obvs = Logic.get_ids(test_, [:Obv, :Ref])
     stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
     case length(obvs) do
       0 -> stmt
@@ -148,7 +148,7 @@ defmodule TimeMachine.Compiler do
       _ -> [J.variable_declarator(J.object_pattern(id(cods)), id(:config))]
     end
     impure_tpls = [] # TODO: define all non-pure inner templates inside of the panel here...
-    obvs = TimeMachine.Elements.get_ids(content, :Obv)
+    obvs = Logic.get_ids(content, :Obv)
     |> id()
     # TODO: get_ids(content, :Var) -- also for each non-pure template, as well..
     # so, to get this doing well,
