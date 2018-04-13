@@ -15,6 +15,15 @@ defmodule TimeMachine.Compiler do
     Enum.map(content, &compile/1)
   end
   def compile(%Element{tag: tag, attrs: attrs, content: content}) do
+    content = cond do
+      is_list(content) ->
+        case length(content) do
+          0 -> nil
+          1 -> hd(content)
+          _ -> content
+        end
+      true -> content
+    end
     quote do: %Element{tag: unquote(tag), attrs: unquote(attrs), content: unquote(content)}
   end
   def compile(value) do
@@ -247,7 +256,7 @@ defmodule TimeMachine.Compiler do
     Enum.map(kvs, fn {k, _v} -> J.identifier(k) end)
   end
 
-  defp val(v \\ nil) do
+  defp val(v) do
     args = case v do
       nil -> []
       _ -> [to_ast(v)]
