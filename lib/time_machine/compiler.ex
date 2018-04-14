@@ -103,6 +103,11 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Logic.Ref{name: name}) do
     J.member_expression(id(:G), to_ast(name), true)
   end
+  def to_ast(%Logic.Modify{name: name, type: _type, fun: fun}) do
+    fun = Macro.expand(fun, __ENV__)
+    fun = J.arrow_function_expression([id(name)], [], to_ast(fun))
+    J.call_expression(id(:m), [id(name), fun])
+  end
 
   def to_ast(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
     obvs = Logic.get_ids(test_, [:Obv, :Ref])

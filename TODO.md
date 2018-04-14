@@ -1,6 +1,11 @@
 
 ### current effort
 
+- get_ids does not take Logic.Modify into account. test to be sure this is working
+  - eg. when I refer to the obv, `num` it should be defined in the inner transform / compute
+- write tests for `Modify`
+- write tests for `Bind1`, `Bind2`
+- write tests for `boink: ~o(obv)` translates directly into a `Modify`
 - explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
   - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,v.. etc.
 ```js

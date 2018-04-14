@@ -1,63 +1,100 @@
 
 
-# inline template loop
-defmodule TimeMachine.Logic.Loop do
-  defstruct tag: :_loop,
-    test: true,
-    do: nil, # does this when true
-    else: nil # this when test is false
-end
-
-defmodule TimeMachine.Logic.Each do
-  defstruct tag: :_each,
-    obv: nil,
-    do: nil, # does this when obv truthy or length > 0
-  else: nil # this when obv is falsy or length zero
-end
-
-# assignment expression
-defmodule TimeMachine.Logic.Assign do
-  defstruct tag: :_ass, name: nil, type: nil, value: nil
-end
-
-# inline template logic
-defmodule TimeMachine.Logic.If do
-  defstruct tag: :_if, test: true, do: nil, else: nil
-end
-
-# local to the template, real-time updating value
-defmodule TimeMachine.Logic.Obv do
-  defstruct tag: :_obv, name: nil
-end
-
-# environmental variable (changes in the value are not propagated in real-time)
-defmodule TimeMachine.Logic.Var do
-  defstruct tag: :_var, name: nil
-end
-
-# right now, this translates to G['var'] - which are variables local to the "plugin", such as `width`, and `height`
-# should be: a source of array, such as an ObservableArray or a stream of sorts. (also, should be local??)
-# not sure about this still...
+# platform properties such as `width`, and `height`, `dpr`, etc.
+# config properties set by the loading environment
+# should be thought of as "immutable", but they can change
+# if any of these change, the thing will reinitialise
+# they are provided as obvs, just because often times their values
+# are used in calculations
 defmodule TimeMachine.Logic.Ref do
-  defstruct tag: :_ref, name: nil
+  defstruct tag: :_ref,
+           name: nil
 end
 
 # environmental observable
 defmodule TimeMachine.Logic.Condition do
-  defstruct tag: :_cod, name: nil
+  defstruct tag: :_cod,
+           name: nil
 end
 
-# inline piece of js
+# environmental variable (changes in the value are not propagated in real-time)
+defmodule TimeMachine.Logic.Var do
+  defstruct tag: :_var,
+           name: nil
+end
+
+# local to the template, real-time updating value
+defmodule TimeMachine.Logic.Obv do
+  defstruct tag: :_obv,
+           name: nil
+end
+
+# assignment expression
+defmodule TimeMachine.Logic.Assign do
+  defstruct tag: :_ass,
+           name: nil,
+           type: nil,
+          value: nil
+end
+
+# one-way bindings (set the lhs every time the rhs changes)
+defmodule TimeMachine.Logic.Bind1 do
+  defstruct tag: :_b1,
+            lhs: nil,
+            rhs: nil
+end
+
+# two-way bindings, beginning with the lhs value
+defmodule TimeMachine.Logic.Bind2 do
+  defstruct tag: :_b2,
+            lhs: nil,
+            rhs: nil
+end
+
+# event listener which saves the result of rhs into lhs
+defmodule TimeMachine.Logic.Modify do
+  defstruct tag: :_mod,
+           name: nil,
+           type: nil,
+            fun: nil
+end
+
+# inline template logic
+defmodule TimeMachine.Logic.If do
+  defstruct tag: :_if,
+           test: true,
+             do: nil,
+           else: nil
+end
+
+# inline template loop
+defmodule TimeMachine.Logic.Loop do
+  defstruct tag: :_loop,
+           test: true,
+             do: nil, # does this when true
+           else: nil # this when test is false
+end
+
+# does do for every element in obv
+defmodule TimeMachine.Logic.Each do
+  defstruct tag: :_each,
+            obv: nil,
+             do: nil, # does this when obv truthy or length > 0
+           else: nil # this when obv is falsy or length zero
+end
+
+# inline piece of js (single expression)
 defmodule TimeMachine.Logic.Js do
-  defstruct tag: :_js, content: nil
+  defstruct tag: :_js,
+        content: nil
 end
 
-# wrap around piece of js"
-# TODO: finish me up.
-# I want that there are expressions, blocks,
-# and wraps... which are blocks with something on each side? (I don't really see th value at he time right now..)
+# content with js on both sides of it (how does this look in js ast?)
 defmodule TimeMachine.Logic.JsWrap do
-  defstruct tag: :__js, left: nil, right: nil
+  defstruct tag: :__js,
+            lhs: nil,
+        content: nil,
+            rhs: nil
 end
 
 defmodule TimeMachine.Logic do
@@ -107,8 +144,33 @@ defmodule TimeMachine.Logic do
         {:__aliases__, [alias: false], mod_list(alias_)}
 
       expr -> expr
+      # expr -> Macro.update_meta(expr, fn (_meta) -> [] end)
     end)
     |> Macro.update_meta(fn (_meta) -> [] end)
+  end
+
+  @doc "resolve aliases & remove any meta"
+  def resolve_quoted(ast) do
+    # we cannot really use Macro.expand, because that will expand the if-statements into case statements.
+    # so, instead, we do our own alias resolution
+    Macro.postwalk(ast, fn
+      {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
+        cond do
+          mod_a == false -> Module.concat(mod)
+          is_list(mod) && mod_a == false -> Module.concat(mod)
+          is_atom(mod_a) -> mod_a
+          is_atom(mod) -> mod
+          true -> raise "unknown alias"
+        end
+        |> struct(map_)
+
+      {:__aliases__, [alias: alias_], _mod} when is_atom(alias_) and alias_ != false ->
+        {:__aliases__, [alias: false], mod_list(alias_)}
+
+      # expr -> expr
+      expr -> Macro.update_meta(expr, fn (_meta) -> [] end)
+    end)
+    # |> Macro.update_meta(fn (_meta) -> [] end)
   end
 
   @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom]"

@@ -91,10 +91,19 @@ defmodule CompilerTest do
     assert tpl_logic_multi_var() |> to_js() == "()=>[num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)]"
     assert tpl_logic_multi_obv() |> to_js() == "({num,mun})=>[c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))]"
     assert tpl_logic_multi_obv_var() |> to_js() == "({mun})=>[t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))]"
+  end
 
-    # these are all going to change after I define better what a panel is.
+  test "panels generate proper js" do
+    # TODO - render the pure templates into the environment
+    # TODO - store pure templates separate from the env templates (and call them from this universal location, passing the obv to the template)
+    # TODO - render impure templates into the panel
     # assert pnl_logic_var() |> to_js() == "()=>[num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)]"
     # assert pnl_logic_obv() |> to_js() == "()=>[c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))]"
     # assert pnl_logic_obv_var() |> to_js() == "()=>[t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))]"
+  end
+
+  test "injected js renders proprly and plays nicely" do
+    # TODO - ~j/var lala = 1234/ renders correctly
+    # TODO - bonus: it'd be nice if it detected the existance of this environmental `Var`
   end
 end

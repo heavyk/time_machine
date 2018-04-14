@@ -48,28 +48,28 @@ defmodule TimeMachine do
 
   # SOON: templates go here!
   template :toggle_button do
-    # preset the obv value like this:
+    # set the obv value like this: (later, see how this interacts with the way the different panels below set it)
     # ~o(is_toggled) = true
-    div '.content' do
-      button "toggle", [boink: ~o(is_toggled)]
-      div do
+    div '.toggle-button' do
+      button "toggle me", [boink: ~o(is_toggled)]
+      div '.button-value' do
         if ~o(is_toggled) do
-          div "toggled: ON!"
+          span "toggled: ON!"
         else
-          div "toggled: off..."
+          span "toggled: off..."
         end
       end
     end
   end
 
   template :press_button do
-    div '.content' do
+    div '.press-button' do
       button "press me", [press: ~o(is_pressed)]
-      div do
+      div '.button-value' do
         if ~o(is_pressed) do
-          div "pressed: YES!"
+          span "pressed: YES!"
         else
-          div "pressed: no..."
+          span "pressed: no..."
         end
       end
     end
@@ -85,10 +85,35 @@ defmodule TimeMachine do
     end
   end
 
-  panel :button_demo do
+  panel :button_me do
+    # define this here and you will see their values are local to this panel.
+    # comment their definitions here, and their values will be retrieved from the environment
     # ~o(is_pressed) = true
     # ~o(is_toggled) = true
-    fragment do
+    div '.buttons' do
+      h2 "some buttons you can press"
+      press_button()
+      toggle_button()
+    end
+  end
+
+  panel :one_way_binding do
+    # we set is_toggled, then set is_pressed to be bound to value of is_toggled
+    # you should see that when you press the press the toggle button,
+    # the pressed button's default state is the value of toggled
+    ~o(is_toggled) = true
+    ~o(is_pressed) <~ ~o(is_toggled)
+    div '.buttons' do
+      h2 "some buttons you can press"
+      press_button()
+      toggle_button()
+    end
+  end
+
+  panel :two_way_binding do
+    ~o(is_toggled) = true
+    ~o(is_toggled) <~> ~o(is_pressed)
+    div '.buttons' do
       h2 "some buttons you can press"
       press_button()
       toggle_button()

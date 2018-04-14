@@ -2,28 +2,44 @@ defmodule TimeMachine.Elements do
   use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
-    tags: [:div, :ul, :li, :a, :img, :input, :label, :button, :h1, :h2, :h3],
+    tags: [:div, :span, :ul, :li, :a, :img, :input, :label, :button, :h1, :h2, :h3],
     containers: [:template, :component, :panel]
 
   @transformers [ &TimeMachine.Elements.handle_logic/2 ]
 
-  # some interesting things that can be defined, maybe
-  # defmacro left <~> right do
-  #   IO.puts "yay! #{inspect left} #{inspect right}"
-  # end
+  # unused macros
   # defmacro left <|> right do
   #   IO.puts "yay! #{inspect left} #{inspect right}"
   # end
-  # defmacro left <~ right do
-  #   IO.puts "yay! #{inspect left} #{inspect right}"
-  # end
-  # defmacro left ~> right do
-  #   IO.puts "yay! #{inspect left} #{inspect right}"
-  # end
-
   # defmacro __using__(opts) do
   #   IO.puts "TimeMachine.Elements! #{inspect opts}"
   # end
+
+  @doc "one-way bindings, setting the lhs whenever the rhs changes"
+  defmacro lhs <~ rhs do
+    # IO.puts "<~ #{inspect lhs} #{inspect rhs}"
+    # whenever rhs changes, set lhs
+    quote do: %TimeMachine.Logic.Bind1{lhs: unquote(lhs), rhs: unquote(rhs)}
+  end
+
+  @doc "one-way bindings, setting the rhs whenever the lhs changes"
+  defmacro lhs ~> rhs do
+    # IO.puts "~> #{inspect lhs} #{inspect rhs}"
+    quote do: %TimeMachine.Logic.Bind1{lhs: unquote(rhs), rhs: unquote(lhs)}
+  end
+
+  @doc "two-way bindings, beginning with the lhs value"
+  defmacro lhs <~> rhs do
+    # IO.puts "<~> #{inspect lhs} #{inspect rhs}"
+    quote do: %TimeMachine.Logic.Bind2{lhs: unquote(lhs), rhs: unquote(rhs)}
+  end
+
+  @doc "shortcut to define a modify obv on event listener"
+  defmacro lhs <- rhs do
+    {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
+    fun = Logic.clean_quoted(rhs) |> Macro.escape()
+    quote do: %TimeMachine.Logic.Modify{name: unquote(name), type: unquote(type), fun: unquote(fun)}
+  end
 
   @doc "Obv is a real-time value local to its panel definition"
   defmacro sigil_o({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
