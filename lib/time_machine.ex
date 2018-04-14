@@ -51,7 +51,7 @@ defmodule TimeMachine do
     # preset the obv value like this:
     # ~o(is_toggled) = true
     div '.content' do
-      button [boink: ~o(is_toggled)], "toggle"
+      button "toggle", [boink: ~o(is_toggled)]
       div do
         if ~o(is_toggled) do
           div "toggled: ON!"
@@ -64,13 +64,23 @@ defmodule TimeMachine do
 
   template :press_button do
     div '.content' do
-      button [press: ~o(is_pressed)], "press me"
+      button "press me", [press: ~o(is_pressed)]
       div do
         if ~o(is_pressed) do
           div "pressed: YES!"
         else
           div "pressed: no..."
         end
+      end
+    end
+  end
+
+  template :adder do
+    div '.adder' do
+      h2 "button adder"
+      div '.buttons' do
+        button "++", [boink: ~o(num) <- num + 1]
+        button "--", [boink: ~o(num) <- num - 1]
       end
     end
   end

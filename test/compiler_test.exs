@@ -15,7 +15,7 @@ defmodule CompilerTest do
     |> ESTree.Tools.Generator.generate(false)
   end
 
-  test "generate js" do
+  test "elements generate proper js" do
     assert (div "one") |> to_js() ==
         "h('div','one')"
 
@@ -49,7 +49,9 @@ defmodule CompilerTest do
     assert ~h/.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
     assert ~h/div.c1.c2.c3#id/ |> to_js() == "h('.c1.c2.c3#id')"
     assert ~h/custom-el.c1.c2.c3#id/ |> to_js() == "h('custom-el.c1.c2.c3#id')"
+  end
 
+  test "logic generates proper js" do
     # static logic renders to js correctly
     assert tpl_logic_static([num: 1]) |> to_js() == "()=>[h('div','nope'),null,h('div','yay'),h('div','yay')]"
     assert tpl_logic_static([num: 2]) |> to_js() == "()=>[h('div','yay'),h('div','yay'),h('div','nope'),h('div')]"
