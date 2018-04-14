@@ -2,7 +2,6 @@
 defmodule TimeMachine.Templates do
   defmacro __using__(_) do
     quote do
-      # https://elixir-lang.org/getting-started/meta/domain-specific-languages.html
       Module.register_attribute(__MODULE__, :templates, accumulate: true)
       @on_definition TimeMachine.Templates
       @before_compile TimeMachine.Templates
@@ -49,15 +48,40 @@ defmodule TimeMachine do
 
   # SOON: templates go here!
   template :toggle_button do
+    # preset the obv value like this:
+    # ~o(is_toggled) = true
     div '.content' do
-      button [boink: ~o(toggler)], "toggle"
+      button [boink: ~o(is_toggled)], "toggle"
       div do
-        if ~o(toggler) do
+        if ~o(is_toggled) do
           div "toggled: ON!"
         else
           div "toggled: off..."
         end
       end
+    end
+  end
+
+  template :press_button do
+    div '.content' do
+      button [press: ~o(is_pressed)], "press me"
+      div do
+        if ~o(is_pressed) do
+          div "pressed: YES!"
+        else
+          div "pressed: no..."
+        end
+      end
+    end
+  end
+
+  panel :button_demo do
+    # ~o(is_pressed) = true
+    # ~o(is_toggled) = true
+    fragment do
+      h2 "some buttons you can press"
+      press_button()
+      toggle_button()
     end
   end
 
@@ -79,8 +103,7 @@ defmodule Toggler do
 
   use Marker,
     compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements,
-    imports: []
+    elements: TimeMachine.Elements#, imports: []
 
   # SOON: templates go here!
   template :main do

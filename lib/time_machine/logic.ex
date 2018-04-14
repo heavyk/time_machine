@@ -15,7 +15,10 @@ defmodule TimeMachine.Logic.Each do
   else: nil # this when obv is falsy or length zero
 end
 
-
+# assignment expression
+defmodule TimeMachine.Logic.Assign do
+  defstruct tag: :_ass, name: nil, type: nil, value: nil
+end
 
 # inline template logic
 defmodule TimeMachine.Logic.If do

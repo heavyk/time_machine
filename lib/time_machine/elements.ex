@@ -2,7 +2,7 @@ defmodule TimeMachine.Elements do
   use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
-    tags: [:div, :ul, :li, :a, :img, :input, :label, :button],
+    tags: [:div, :ul, :li, :a, :img, :input, :label, :button, :h1, :h2, :h3],
     containers: [:template, :component, :panel]
 
   @transformers [ &TimeMachine.Elements.handle_logic/2 ]
@@ -113,15 +113,20 @@ defmodule TimeMachine.Elements do
           length(ids) > 0 ->
             do_ = Keyword.get(right, :do)
             else_ = Keyword.get(right, :else, nil)
-            test_ = Macro.escape(left)
-            |> Logic.clean_quoted()
+            test_ = Macro.escape(left) |> Logic.clean_quoted()
             expr = quote do: %TimeMachine.Logic.If{test: unquote(test_),
-                                                  do: unquote(do_),
-                                                else: unquote(else_)}
+                                                     do: unquote(do_),
+                                                   else: unquote(else_)}
             {expr, info}
           true ->
             {expr, info}
         end
+
+      { :=, _meta, [{:%, [], [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}, value]}, info ->
+        # IO.puts "assignment: #{inspect type} #{name} = #{inspect value}"
+        expr = quote do: %TimeMachine.Logic.Assign{name: unquote(name), type: unquote(type), value: unquote(value)}
+        {expr, info}
+
       expr, info ->
         # IO.puts "postwalk expr: #{inspect expr}"
         {expr, info}
@@ -137,7 +142,7 @@ defmodule TimeMachine.Elements do
   # designing a robot to be unhelpful, I think, would be more difficult technically, than to design a helpful one.
 
   @doc "Define a new template"
-  defmacro template(name, do: block) do
+  defmacro template(name, do: block) when is_atom(name) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
@@ -151,7 +156,7 @@ defmodule TimeMachine.Elements do
   end
 
   @doc "panel is like a template, but we need to handle more than just the @ assigns"
-  defmacro panel(name, do: block) do
+  defmacro panel(name, do: block) when is_atom(name) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
@@ -165,13 +170,20 @@ defmodule TimeMachine.Elements do
   end
 
   # @doc "component is a contained ... TODO - work all this out"
-  defmacro component(name, do: block) do
+  defmacro component(name, do: block) when is_atom(name) do
     template = String.to_atom(Atom.to_string(name) <> "__template")
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
     {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
-      defmacro unquote(name)(content_or_attrs \\ nil, maybe_content \\ nil) do
-        { attrs, content } = Marker.Element.normalize_args(content_or_attrs, maybe_content, __CALLER__)
+      defmacro unquote(name)(c1 \\ nil, c2 \\ nil, c3 \\ nil, c4 \\ nil, c5 \\ nil) do
+        caller = __CALLER__
+        %Marker.Element{attrs: attrs, content: content} =
+          %Marker.Element{attrs: [], content: []}
+          |> Marker.Element.add_arg(c1, caller)
+          |> Marker.Element.add_arg(c2, caller)
+          |> Marker.Element.add_arg(c3, caller)
+          |> Marker.Element.add_arg(c4, caller)
+          |> Marker.Element.add_arg(c5, caller)
         content = quote do: List.wrap(unquote(content))
         assigns = {:%{}, [], [{:__content__, content} | attrs]}
         template = unquote(template)

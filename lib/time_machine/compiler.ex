@@ -1,13 +1,10 @@
-# temporarily this is here. will be pulled out to another project soon as it's working properly
-
-
 defmodule TimeMachine.Compiler do
   alias Marker.Element
   alias TimeMachine.Logic
   alias ESTree.Tools.Builder, as: J
-  # alias ESTree.Tools.Generator
+  alias ESTree.Tools.Generator
 
-  defdelegate generate(ast), to: ESTree.Tools.Generator
+  defdelegate generate(ast), to: Generator
 
   defguard is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v)
 
@@ -28,11 +25,7 @@ defmodule TimeMachine.Compiler do
   end
   def compile(value) do
     TimeMachine.Encoder.encode(value)
-    # value
   end
-  # def compile(content) do
-  #   quote do: unquote(content)
-  # end
 
   # opuerator layout
   # @unary_operator       [ :-, :+, :!, :"~", :typeof, :void, :delete ]

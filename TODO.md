@@ -52,15 +52,12 @@ function button_adder (G, {cod}) {
 - convert to an umbrella project (https://github.com/JakeBecker/elixir-ls)
 - when use TimeMachine.Compiler is invoked, add a hook to parse the `@css` module attributes.
   - see `TimeMachine.Templates` -- https://gist.github.com/mprymek/8379066
-- TimeMachine.Compiler is just a shell which returns the element.
-  -> instead return js and stuff (this requires the use of {:safe, str} to ensure things aren't double escaped)
+  - also, https://elixir-lang.org/getting-started/meta/domain-specific-languages.html
 - create mapping from templates into roadtrip configuration
   -> templates are kinda like 'pages' and components are different things inside the templates
-- top-level templates/fragments get converted to functions with (assigns/d) and `@value` expands to assigns.value
-  -> but, maybe I want to do the assigns in the "this" context of the function (actually no, to follow the observable model)
-- add conditional expressions which work with observables, such as if-else and cond (but case will need extra thought - I don't think it's easy)
 - create a hook when compiling the module to also compile the module's css
 - ~j/var js_var = 1; console.log('jsvar:', js_var)/ will get inlined into the resulting function
+- ensure all variable names are stored as atoms instead of binaries
 
 ### smallish things
 
