@@ -31,6 +31,12 @@ defmodule TimeMachine.Elements do
     quote do: %TimeMachine.Logic.Obv{name: unquote(name)}
   end
 
+  @doc "Condition is a real-time value local to its environment"
+  defmacro sigil_O({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
+    name = to_string(ident)
+    quote do: %TimeMachine.Logic.Condition{name: unquote(name)}
+  end
+
   @doc "Var is a constant value which exists in the environment - an environmental condition"
   defmacro sigil_v({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
     name = to_string(ident)
@@ -62,6 +68,7 @@ defmodule TimeMachine.Elements do
   def handle_logic(block, info) do
     # perhaps this could be moved to TimeMachine.Logic
     info = Keyword.put_new(info, :ids, [])
+      |> Keyword.put_new(:pure, true)
     {block, info} = Macro.traverse(block, info, fn
       # PREWALK (going in)
       { :@, meta, [{ name, _, atom }]} = expr, info when is_atom(name) and is_atom(atom) ->
@@ -92,6 +99,7 @@ defmodule TimeMachine.Elements do
       # POSTWALK (coming back out)
       { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_o, :sigil_v] ->
         type = case sigil do
+          :sigil_O -> :Condition
           :sigil_v -> :Var
           :sigil_o -> :Obv
         end
@@ -104,7 +112,9 @@ defmodule TimeMachine.Elements do
           ^type -> ids
           _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
         end
-        info = Keyword.put(info, :ids, ids)
+        info = info
+          |> Keyword.put(:ids, ids)
+          |> Keyword.update(:pure, true, fn is_pure -> is_pure and type == :Obv end)
         {expr, info}
 
       { :if, _meta, [left, right]} = expr, info ->
