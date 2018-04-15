@@ -1,8 +1,7 @@
 defmodule CompilerTest do
   use ExUnit.Case
-  use Marker,
-    compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements
+
+  use TimeMachine
 
   import TestTemplates
   alias TimeMachine.Elements

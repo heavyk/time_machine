@@ -1,13 +1,12 @@
 defmodule ElementsTest do
   use ExUnit.Case
-  use Marker,
-    compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements
 
   import TestTemplates
   alias Marker.Element, as: E
   alias TimeMachine.Logic
   require Logic
+
+  use TimeMachine
 
   doctest TimeMachine.Elements
 

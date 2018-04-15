@@ -8,15 +8,23 @@ defmodule TimeMachine do
   any of the bindings.
   """
 
+  defmacro __using__(_) do
+    quote do
+      use TimeMachine.Elements
+      use Marker,
+        compiler: TimeMachine.Compiler,
+        elements: TimeMachine.Elements
+    end
+  end
+
+  use TimeMachine.Elements
   use Marker,
     compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements,
-    imports: [] # skip importing `component` and `template` from marker (we define our own ones in TimeMachine.Elements)
+    elements: TimeMachine.Elements
 
 
   # borrow some ideas from this: https://dfilatov.github.io/vidom-ui
 
-  # SOON: templates go here!
   template :toggle_button do
     # set the obv value like this: (later, see how this interacts with the way the different panels below set it)
     # ~o(is_toggled) = true
@@ -106,9 +114,7 @@ defmodule Toggler do
   }
   '''
 
-  use Marker,
-    compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements#, imports: []
+  use TimeMachine
 
   # SOON: templates go here!
   template :main do

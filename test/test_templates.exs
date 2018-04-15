@@ -1,8 +1,5 @@
 defmodule TestTemplates do
-  use Marker,
-    compiler: TimeMachine.Compiler,
-    elements: TimeMachine.Elements,
-    imports: []
+  use TimeMachine
 
   template :tpl_test do
     div "test #{@val}"
