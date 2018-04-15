@@ -130,6 +130,9 @@ defmodule TimeMachine.Logic do
     # we cannot really use Macro.expand, because that will expand the if-statements into case statements.
     # so, instead, we do our own alias resolution
     Macro.postwalk(ast, fn
+      {:%, _, [alias_, {:%{}, _, map_}]} when is_atom(alias_) ->
+        {:%, [], [{:__aliases__, [alias: false], mod_list(alias_)}, {:%{}, [], map_}]}
+
       {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
         cond do
           mod_a == false -> Module.concat(mod)

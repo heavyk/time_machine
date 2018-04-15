@@ -12,6 +12,31 @@ defmodule TimeMachine.Compiler do
     Enum.map(content, &compile/1)
   end
   def compile(%Element{tag: tag, attrs: attrs, content: content}) do
+    attrs = Enum.map(attrs, fn {k, v} ->
+      case k do
+        evt when evt in [:boink, :press] ->
+          evt = case evt do
+            :boink -> Logic.Modify
+            :press -> Logic.Press
+          end
+          {k, Macro.prewalk(v, fn
+            { sigil, _meta, [{:<<>>, _, [name]}, _]} when sigil in [:sigil_O, :sigil_o] ->
+              type = case sigil do
+                :sigil_O -> :Condition
+                :sigil_o -> :Obv
+              end
+              quote do: %unquote(evt){name: unquote(name), type: unquote(type)}
+
+            {:<-, _, [lhs, rhs]} ->
+              {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
+              fun = Logic.clean_quoted(rhs) |> Macro.escape()
+              quote do: %unquote(evt){name: unquote(name), type: unquote(type), fun: unquote(fun)}
+            expr -> expr
+          end)}
+
+        _ -> {k, v}
+      end
+    end)
     content = cond do
       is_list(content) ->
         case length(content) do

@@ -34,12 +34,12 @@ defmodule TimeMachine.Elements do
     quote do: %TimeMachine.Logic.Bind2{lhs: unquote(lhs), rhs: unquote(rhs)}
   end
 
-  @doc "shortcut to define a modify obv on event listener"
-  defmacro lhs <- rhs do
-    {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
-    fun = Logic.clean_quoted(rhs) |> Macro.escape()
-    quote do: %TimeMachine.Logic.Modify{name: unquote(name), type: unquote(type), fun: unquote(fun)}
-  end
+  # @doc "shortcut to define a modify obv on event listener"
+  # defmacro lhs <- rhs do
+  #   {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
+  #   fun = Logic.clean_quoted(rhs) |> Macro.escape()
+  #   quote do: %TimeMachine.Logic.Modify{name: unquote(name), type: unquote(type), fun: unquote(fun)}
+  # end
 
   @doc "Obv is a real-time value local to its panel definition"
   defmacro sigil_o({:<<>>, _, [ident]}, _mods) when is_binary(ident) do
@@ -113,11 +113,11 @@ defmodule TimeMachine.Elements do
       # END PREWALK
     end, fn
       # POSTWALK (coming back out)
-      { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_o, :sigil_v] ->
+      { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
         type = case sigil do
           :sigil_O -> :Condition
-          :sigil_v -> :Var
           :sigil_o -> :Obv
+          :sigil_v -> :Var
         end
         expr =
           {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
