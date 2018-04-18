@@ -4,7 +4,6 @@ defmodule CompilerTest do
   use TimeMachine
 
   import TestTemplates
-  alias TimeMachine.Elements
   alias TimeMachine.Logic
 
   doctest TimeMachine.Compiler
@@ -67,20 +66,20 @@ defmodule CompilerTest do
       |> to_js() == "num===num2"
     assert quote(do: ~o(num) === ~o(num2))
       |> Logic.clean_quoted()
-      |> Elements.handle_logic()
+      |> Logic.handle_logic()
       |> to_js() == "num===num2"
     assert quote(do: ~o(num) === "a string")
       |> Logic.clean_quoted()
-      |> Elements.handle_logic()
+      |> Logic.handle_logic()
       |> to_js() == "num==='a string'"
     assert quote(do: ~o(num) === 1234 && ~o(num2) === 1111)
       |> Logic.clean_quoted()
-      |> Elements.handle_logic()
+      |> Logic.handle_logic()
       |> to_js() == "num===1234&&num2===1111"
     assert_raise RuntimeError, fn ->
       quote(do: (if ~v(num) === ~o(num), do: div "yay"))
       |> Logic.clean_quoted()
-      |> Elements.handle_logic()
+      |> Logic.handle_logic()
       |> to_js()
     end
 
