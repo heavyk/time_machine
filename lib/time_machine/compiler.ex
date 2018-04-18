@@ -87,7 +87,6 @@ defmodule TimeMachine.Compiler do
   def to_ast(value) when is_literal(value) do
     J.literal(value)
   end
-
   def to_ast({:%, [], [aliases_, {:%{}, _, map_}]}) do
     {:__aliases__, [alias: mod_a], mod} = aliases_
     mod = cond do
@@ -106,11 +105,11 @@ defmodule TimeMachine.Compiler do
   def to_ast({op, _meta, [lhs, rhs]}) when op in @assignment_operator do
     J.assignment_expression(op, to_ast(lhs), to_ast(rhs))
   end
-  def to_ast({op, _meta, [lhs, rhs]}) when op in @unary_operator do
-    J.unary_expression(op, true, to_ast(lhs), to_ast(rhs))
+  def to_ast({op, _meta, [expr]}) when op in @unary_operator do
+    J.unary_expression(op, true, to_ast(expr))
   end
   def to_ast(%Logic.Js{content: content}) do
-    content = txt_to_ast(content) # this should do variable name transformations on this js' identifiers, too
+    content = txt_to_ast(content) # TODO: for reals, convert to ast and then do do variable name transformations as well
     {:safe, content}
   end
   def to_ast(%Logic.Var{name: name}) do
