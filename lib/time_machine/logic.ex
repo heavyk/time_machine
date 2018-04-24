@@ -316,21 +316,9 @@ defmodule TimeMachine.Logic do
   @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom]"
   def get_ids(block, like \\ nil) do
     {_, ids} = Macro.postwalk(block, [], fn
-      # { sigil, _meta, [{:<<>>, _, [name]}, _]}, ids when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
-      #   type = case sigil do
-      #     :sigil_O -> :Condition
-      #     :sigil_o -> :Obv
-      #     :sigil_v -> :Var
-      #   end
-      #   expr =
-      #     {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
-      #   name = String.to_atom(name)
-      #   ids = case t = Keyword.get(ids, name) do
-      #     nil -> Keyword.put(ids, name, type)
-      #     ^type -> ids
-      #     _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
-      #   end
-      #   {expr, ids}
+      { sigil, _meta, [{:<<>>, _, [_name]}, _]}, _ when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
+        raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
+            "for whatever reason you are looking for ids on unhandled logic (run Logic.handle_logic/2 first)"
 
       {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false -> # is this necessary?
         IO.puts "convert alias: #{alias_}"
