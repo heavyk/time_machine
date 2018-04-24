@@ -131,7 +131,6 @@ defmodule TimeMachine.Logic do
   # negative emotion also means that I have summoned more than I am allowing right now
   # negative emotion means I am holding myself in perfect vibrational harmony with something I do not want
 
-
   @doc false
   def handle_logic(block, info) do
     info = Keyword.put_new(info, :ids, [])
@@ -206,9 +205,58 @@ defmodule TimeMachine.Logic do
         end
         {expr, info}
 
-      { :cond, _meta, [_lhs, _rhs]} = expr, info ->
-        raise RuntimeError, "cond not yet implemented. it'll be a chain of if-statements though"
-        {expr, info}
+      { :cond, _meta, [[do: clauses]]} = expr, info ->
+        ids = get_ids(clauses)
+        case length(ids) do
+          0 -> {expr, info} # statements without obvs are not transformed and evaluated normally
+          _ ->
+            starter = quote do: %Logic.If{test: nil, do: nil, else: nil}
+            clauses = :lists.reverse(clauses)
+            expr = Enum.reduce(clauses, starter, fn
+              {:->, _, [cases, do__]}, {:%, _, [_, {_, _, [test: test_, do: do_, else: _else_]}]} = prev ->
+                test__ = cases |> hd() |> Macro.escape()
+                # TODO: add a check to be sure the "true" statement does exist, and that it is in fact the last statement
+                else__ = case test__ do
+                  true -> nil
+                  _ ->
+                    case test_ do
+                      true -> do_
+                      _ -> prev
+                    end
+                end
+                quote do: %Logic.If{test: unquote(test__), do: unquote(do__), else: unquote(else__)}
+              expr, acc -> raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
+                  "for whatever reason you have made an irregular cond statement that time_machine does not understand.\n" <>
+                  "\n  expression: #{inspect expr}" <>
+                  "\n  acc: #{inspect acc}"
+            end)
+
+            {expr, info}
+        end
+
+        # sidbar: I do not understand why the elixir code:
+        #
+        # if lala == 11, do: "yay", else: "no"
+        #
+        # turns into:
+        #
+        # case(lala == 11) do
+        #   x when x in [false, nil] -> "no"
+        #   _ -> "yay"
+        # end
+        #
+        # instead of:
+        #
+        # cond do
+        #   lala == 11 -> "yay"
+        #   true -> "no"
+        # end
+        #
+        # IMO, the cond statement seems quite a bit more straight forward. is it slower or something?
+        # there's no way the Kernel.in() guard clause is any faster.
+
+      { :case, _meta, _ } = _expr, _info ->
+        raise "case statements are not transformed to js yet - if ever. use a cond statement instead"
 
       { :if, _meta, [lhs, rhs]} = expr, info ->
         ids = Logic.get_ids(expr)
@@ -303,6 +351,7 @@ defmodule TimeMachine.Logic do
   end
 
   @doc "resolve aliases & remove any meta"
+  @deprecated "not used right now..."
   def resolve_quoted(ast) do
     # we cannot really use Macro.expand, because that will expand the if-statements into case statements.
     # so, instead, we do our own alias resolution

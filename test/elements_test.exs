@@ -168,7 +168,33 @@ defmodule ElementsTest do
     }, tag: :_template, attrs: [ids: [vv: :Var, oo: :Obv], pure: false, name: :tpl_logic_mixed]})
   end
 
-  # assert clean(tpl_transform_inline()) == clean(%E{content: nil}
-  #
-  # )
+  test "cond statements make nested if-statements" do
+    v_els =
+      %E{content:
+        %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 1),
+                    do: %E{content: "one", tag: :div},
+                  else: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
+                                    do: %E{content: "two", tag: :div},
+                                  else: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 3),
+                                                    do: %E{content: "three", tag: :div},
+                                                  else: %E{content: "nope", tag: :div}}}},
+        tag: :_template, attrs: [ids: [num: :Obv], pure: true, name: nil]}
+      |> Logic.handle_logic()
+      |> Logic.clean_quoted()
+      |> clean()
+
+    assert tpl_logic_if()
+    |> Logic.handle_logic()
+    |> Logic.clean_quoted()
+    |> clean() == Map.replace!(v_els, :attrs,
+        Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_if end)
+      )
+
+    assert tpl_logic_cond()
+    |> Logic.handle_logic()
+    |> Logic.clean_quoted()
+    |> clean() == Map.put(v_els, :attrs,
+        Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_cond end)
+      )
+  end
 end

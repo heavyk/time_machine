@@ -120,6 +120,31 @@ defmodule TestTemplates do
     end
   end
 
+  template :tpl_logic_if do
+    if ~o(num) == 1 do
+      div "one"
+    else
+      if ~o(num) == 2 do
+        div "two"
+      else
+        if ~o(num) == 3 do
+          div "three"
+        else
+          div "nope"
+        end
+      end
+    end
+  end
+
+  template :tpl_logic_cond do
+    cond do
+      ~o(num) == 1 -> div "one"
+      ~o(num) == 2 -> div "two"
+      ~o(num) == 3 -> div "three"
+      true -> div "nope"
+    end
+  end
+
   component :foto do
     size = @size
     size = cond do
