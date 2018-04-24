@@ -243,6 +243,19 @@ defmodule TimeMachine.Logic do
         end
         type = Module.concat(mod)
         expr = quote do: %Logic.Assign{obv: %unquote(type){name: unquote(name)}, value: unquote(value)}
+        name = String.to_atom(name)
+        defines = info[:defines]
+        defines = cond do
+          is_list(defines) ->
+            case t = Keyword.get(defines, name) do
+              nil -> Keyword.put(defines, name, type)
+              ^type -> defines
+              _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
+            end
+          true ->
+            raise RuntimeError, "no good! you cannot assign things in a template. use a panel to create a new 'environment' in which you can define things"
+        end
+        info = Keyword.put(info, :defines, defines)
         {expr, info}
 
       {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->

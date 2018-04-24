@@ -1,7 +1,6 @@
 
 ### current effort
 
-- template does not have any assigns. it can neither define any transformations (a panel can however) - enforce this
 - turn cond statements into multiple if-statements (eg. from top to bottom where the else is the next if)
 - `input type: "number", value: ~o(num1)` needs to bind the obv to the value, eg. `el = h('input', ...); num1 = attribute(el)`
   - maybe, another function should be made: `el = bind_value(h('input', ...), obv)` this way the return is the element and the value is saved into the obv

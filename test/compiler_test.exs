@@ -100,6 +100,19 @@ defmodule CompilerTest do
     # assert pnl_logic_obv_var() |> to_js() == "()=>[t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))]"
   end
 
+  test "templates cannot have assigns" do
+    assert_raise RuntimeError, fn ->
+      quote do
+        template :no_tpl_assigns do
+          ~o(yum) = 11
+          div "badness"
+        end
+      end
+      |> Logic.clean_quoted()
+      |> Logic.handle_logic()
+    end
+  end
+
   test "injected js renders proprly and plays nicely" do
     # TODO - ~j/var lala = 1234/ renders correctly
     # TODO - bonus: it'd be nice if it detected the existance of this environmental `Var`
