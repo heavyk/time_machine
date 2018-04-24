@@ -29,11 +29,17 @@ defmodule TimeMachine.Logic.Obv do
            name: nil
 end
 
-# assignment expression
+# assignment expression: initialisation value of an obv/var in a scope
 defmodule TimeMachine.Logic.Assign do
   defstruct tag: :_ass,
-           name: nil,
-           type: nil,
+            obv: nil,
+          value: nil
+end
+
+# permutation (a real-time obv which is a transformation on other values)
+defmodule TimeMachine.Logic.Permutation do
+  defstruct tag: :_perm,
+            obv: nil,
           value: nil
 end
 
@@ -51,11 +57,24 @@ defmodule TimeMachine.Logic.Bind2 do
             rhs: nil
 end
 
-# event listener which saves the result of rhs into lhs
+# event listener which saves the result of `fun` into `obv`
 defmodule TimeMachine.Logic.Modify do
-  defstruct tag: :_mod,
-           name: nil,
-           type: nil,
+  defstruct tag: :_T,
+            obv: nil,
+            fun: nil
+end
+
+# double event listener which sets the result of `fun` into `set`
+defmodule TimeMachine.Logic.Press do
+  defstruct tag: :_P,
+            obv: nil,
+            fun: nil
+end
+
+# transform/compute `obv` obv(s) (can be a list) with `fun` function and store value into returned obv
+defmodule TimeMachine.Logic.Transform do
+  defstruct tag: :_t,
+            obv: nil,
             fun: nil
 end
 
@@ -98,7 +117,6 @@ defmodule TimeMachine.Logic.JsWrap do
 end
 
 defmodule TimeMachine.Logic do
-  alias Marker.Element
   alias TimeMachine.Logic
 
   defstruct tag: nil, content: nil, attrs: []
@@ -109,33 +127,20 @@ defmodule TimeMachine.Logic do
     end
   end
 
-  def clean(ast) when is_list(ast) do
-    Enum.map(ast, &clean/1)
-  end
-  def clean(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    %Logic.If{test: clean_quoted(test_), do: clean(do_), else: clean(else_)}
-  end
-  def clean(%Element{tag: tag_, content: content_, attrs: attrs_}) do
-    %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
-  end
-  def clean(ast) do
-    Macro.update_meta(ast, fn (_meta) -> [] end)
-  end
   # negative emotion speaks to my misunderstanding what is rally going on
   # negative emotion also means that I have summoned more than I am allowing right now
+  # negative emotion means I am holding myself in perfect vibrational harmony with something I do not want
 
 
   @doc false
   def handle_logic(block, info) do
-    # perhaps this could be moved to TimeMachine.Logic
     info = Keyword.put_new(info, :ids, [])
       |> Keyword.put_new(:pure, true)
     {block, info} = Macro.traverse(block, info, fn
       # PREWALK (going in)
       { :@, meta, [{ name, _, atom }]} = expr, info when is_atom(name) and is_atom(atom) ->
-        # static variable to modify how the template is rendered
+        # first inline server-side values passed to the template (assigns)
         name = name |> to_string()
-        # IO.puts "@#{name} ->"
         line = Keyword.get(meta, :line, 0)
         cond do
           name |> String.last() == "!" ->
@@ -152,12 +157,6 @@ defmodule TimeMachine.Logic do
             {assign, info}
         end
 
-      expr, info ->
-        # IO.puts "prewalk expr: #{inspect expr}"
-        {expr, info}
-      # END PREWALK
-    end, fn
-      # POSTWALK (coming back out)
       { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
         type = case sigil do
           :sigil_O -> :Condition
@@ -178,13 +177,46 @@ defmodule TimeMachine.Logic do
           |> Keyword.update(:pure, true, fn is_pure -> is_pure and type == :Obv end)
         {expr, info}
 
-      { :if, _meta, [left, right]} = expr, info ->
+      expr, info ->
+        # IO.puts "prewalk expr: #{inspect expr}"
+        {expr, info}
+      # END PREWALK
+    end, fn
+      # POSTWALK (coming back out)
+      { op, _meta, fun } = expr, info when op in [:+, :-, :*, :/] -> # for %, a guard needs to skip structs
+        ids = get_ids(expr, [:Obv, :Condition])
+        len = length(ids)
+        obv = Enum.map(ids, fn {name, type} ->
+          type = Module.concat([:TimeMachine, :Logic, type])
+          quote do: %unquote(type){name: unquote(name)}
+        end)
+        # IO.puts "op: #{op} #{len} #{inspect ids} #{inspect fun}"
+        expr = cond do
+          len > 1 ->
+            fun = do_fun(expr, ids)
+            quote do: %Logic.Transform{obv: unquote(obv), fun: unquote(fun)}
+
+          len == 1 ->
+            # obv = quote do: %unquote(type){name: unquote(name)}
+            obv = hd(obv)
+            fun = do_fun(expr, ids)
+            quote do: %Logic.Transform{obv: unquote(obv), fun: unquote(fun)}
+
+          true -> expr
+        end
+        {expr, info}
+
+      { :cond, _meta, [_lhs, _rhs]} = expr, info ->
+        raise RuntimeError, "cond not yet implemented. it'll be a chain of if-statements though"
+        {expr, info}
+
+      { :if, _meta, [lhs, rhs]} = expr, info ->
         ids = Logic.get_ids(expr)
         cond do
           length(ids) > 0 ->
-            do_ = Keyword.get(right, :do)
-            else_ = Keyword.get(right, :else, nil)
-            test_ = Macro.escape(left) |> Logic.clean_quoted()
+            do_ = Keyword.get(rhs, :do)
+            else_ = Keyword.get(rhs, :else, nil)
+            test_ = Macro.escape(lhs) |> Logic.clean_quoted()
             expr = quote do: %TimeMachine.Logic.If{test: unquote(test_),
                                                      do: unquote(do_),
                                                    else: unquote(else_)}
@@ -193,9 +225,29 @@ defmodule TimeMachine.Logic do
             {expr, info}
         end
 
-      { :=, _meta, [{:%, [], [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}, value]}, info ->
+      { op, _meta, [{:%, [], [{:__aliases__, _, [:TimeMachine, :Logic, type] = mod}, {:%{}, [], [name: name]}]}, value]}, info when op in [:=, :<~] ->
         # IO.puts "assignment: #{inspect type} #{name} = #{inspect value}"
-        expr = quote do: %TimeMachine.Logic.Assign{name: unquote(name), type: unquote(type), value: unquote(value)}
+        # TODO: verify that <~ value is in fact a transformation or some sort of permutation
+        # IO.puts "assign: #{op} #{type} #{name} #{inspect value}"
+        literal = is_literal(value)
+        cond do
+          op == :<~ and literal ->
+            raise RuntimeError, "assigning literal '#{value}' into #{name} - instead, use '=' for assignment"
+          op == := and not literal ->
+            raise RuntimeError, "cannot assign value '#{inspect value}' because it is not a literal"
+          op == :<~ and type != :Obv ->
+            raise RuntimeError, "#{name} should be an Obv - you cannot store a permutation in anything other than an Obv"
+          # op == :<~ and not is_transform(value) ->
+          #   raise RuntimeError, "#{name} should be a transformation"
+          true -> nil
+        end
+        type = Module.concat(mod)
+        expr = quote do: %Logic.Assign{obv: %unquote(type){name: unquote(name)}, value: unquote(value)}
+        {expr, info}
+
+      {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->
+        # IO.puts "function? #{fun}"
+        # lookup in ets the atom to see if it exists as a template
         {expr, info}
 
       expr, info ->
@@ -264,7 +316,24 @@ defmodule TimeMachine.Logic do
   @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom]"
   def get_ids(block, like \\ nil) do
     {_, ids} = Macro.postwalk(block, [], fn
+      # { sigil, _meta, [{:<<>>, _, [name]}, _]}, ids when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
+      #   type = case sigil do
+      #     :sigil_O -> :Condition
+      #     :sigil_o -> :Obv
+      #     :sigil_v -> :Var
+      #   end
+      #   expr =
+      #     {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
+      #   name = String.to_atom(name)
+      #   ids = case t = Keyword.get(ids, name) do
+      #     nil -> Keyword.put(ids, name, type)
+      #     ^type -> ids
+      #     _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
+      #   end
+      #   {expr, ids}
+
       {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false -> # is this necessary?
+        IO.puts "convert alias: #{alias_}"
         {{:__aliases__, [alias: false], mod_list(alias_)}, ids}
 
       {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, ids ->
@@ -276,10 +345,6 @@ defmodule TimeMachine.Logic do
         end
         {expr, ids}
 
-      {:=, _, [lhs, rhs]} = expr, ids ->
-        IO.puts "assignment: #{inspect lhs} #{inspect rhs}"
-        {expr, ids}
-
       expr, ids ->
         {expr, ids}
     end)
@@ -289,4 +354,25 @@ defmodule TimeMachine.Logic do
   defp mod_list(alias_) do
     Module.split(alias_) |> Enum.map(&String.to_atom/1)
   end
+
+  defp do_fun(block, ids) do
+    Macro.postwalk(block, fn
+      {:__aliases__, [alias: alias_], _mod} when is_atom(alias_) and alias_ != false -> # is this necessary?
+        {:__aliases__, [alias: false], mod_list(alias_)}
+
+      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, _type]}, {:%{}, _, [name: name]}]} = expr ->
+        id = String.to_atom(name)
+        cond do
+          Keyword.has_key?(ids, id) -> id
+          true -> expr
+        end
+
+      expr -> expr
+    end)
+    |> Macro.escape()
+  end
+
+  defp is_literal(v) when is_list(v), do: Enum.all?(v, &is_literal/1)
+  defp is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v), do: true
+  defp is_literal(_), do: false
 end

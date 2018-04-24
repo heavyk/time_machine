@@ -2,7 +2,8 @@ defmodule TimeMachine.Elements do
   use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
-    tags: [:div, :span, :ul, :li, :a, :p, :img, :input, :label, :button, :h1, :h2, :h3],
+    # tags: [:div, :span, :ul, :li, :a, :p, :img, :input, :label, :button, :h1, :h2, :h3],
+    tags: [:div, :span, :ul, :li, :a, :p, :br, :img, :input, :label, :button, :header, :nav, :main, :h1, :h2, :h3, :h4],
     containers: [:template, :component, :panel]
 
   @transformers [ &TimeMachine.Logic.handle_logic/2 ]
@@ -15,22 +16,31 @@ defmodule TimeMachine.Elements do
   #   IO.puts "TimeMachine.Elements! #{inspect opts}"
   # end
 
-  @doc "one-way bindings, setting the lhs whenever the rhs changes"
+  @doc "one-way bindings: set lhs whenever the rhs changes"
   defmacro lhs <~ rhs do
-    # IO.puts "<~ #{inspect lhs} #{inspect rhs}"
-    # whenever rhs changes, set lhs
+    # TODO: raise if lhs is anything other than: ~o() / ~O()
+    # TODO: raise if rhs isn't / doesn't contain an obv
     quote do: %TimeMachine.Logic.Bind1{lhs: unquote(lhs), rhs: unquote(rhs)}
   end
 
-  @doc "one-way bindings, setting the rhs whenever the lhs changes"
+  @doc "one-way bindings: set rhs whenever the lhs changes"
   defmacro lhs ~> rhs do
-    # IO.puts "~> #{inspect lhs} #{inspect rhs}"
+    # TODO: raise if rhs is anything other than: ~o() / ~O()
+    # TODO: raise if lhs isn't / doesn't contain an obv
     quote do: %TimeMachine.Logic.Bind1{lhs: unquote(rhs), rhs: unquote(lhs)}
   end
 
+  # TODO: it would be possible to also use the one-way binding syntax as trasform / compute bindings.
+  #   eg. ~o(ten_more) <~ ~o(num) + 10
+  #       --> %Bind1{lhs: %Transform{in: Obv{name: "num"}, do: [:+, [:num, 10])}, rhs: Obv{name: "ten_more"}}
+  #       --> b1(t(num, (num) => num + 10), ten_more)
+  #   eg. ~o(sum) <~ ~o(num1) + ~o(num2)
+  #       --> %Bind1{lhs: %Transform{in: [Obv{name: "num1"}, Obv{name: "num2"}], do: [:+, [:num1, :num2])}, rhs: Obv{name: "sum"}}
+  #       --> b1(c([num1, num2], (num1, num2) => num1 + num2), sum)
+
   @doc "two-way bindings, beginning with the lhs value"
   defmacro lhs <~> rhs do
-    # IO.puts "<~> #{inspect lhs} #{inspect rhs}"
+    # TODO: raise if lhs or rhs is anything other than: ~o() / ~O()
     quote do: %TimeMachine.Logic.Bind2{lhs: unquote(lhs), rhs: unquote(rhs)}
   end
 
@@ -38,7 +48,7 @@ defmodule TimeMachine.Elements do
   # defmacro lhs <- rhs do
   #   {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
   #   fun = Logic.clean_quoted(rhs) |> Macro.escape()
-  #   quote do: %TimeMachine.Logic.Modify{name: unquote(name), type: unquote(type), fun: unquote(fun)}
+  #   quote do: %TimeMachine.Logic.Transmute{name: unquote(name), type: unquote(type), fun: unquote(fun)}
   # end
 
   @doc "Obv is a real-time value local to its panel definition"

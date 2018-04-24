@@ -22,15 +22,18 @@ defmodule TimeMachine.Compiler do
           {k, Macro.prewalk(v, fn
             { sigil, _meta, [{:<<>>, _, [name]}, _]} when sigil in [:sigil_O, :sigil_o] ->
               type = case sigil do
-                :sigil_O -> :Condition
-                :sigil_o -> :Obv
+                :sigil_O -> Logic.Condition
+                :sigil_o -> Logic.Obv
               end
-              quote do: %unquote(evt){name: unquote(name), type: unquote(type)}
+
+              quote do: %unquote(evt){obv: %unquote(type){name: unquote(name)}}
 
             {:<-, _, [lhs, rhs]} ->
-              {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
+              {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, _type] = mod}, {:%{}, _, [name: name]}]} = Logic.clean_quoted(lhs)
               fun = Logic.clean_quoted(rhs) |> Macro.escape()
-              quote do: %unquote(evt){name: unquote(name), type: unquote(type), fun: unquote(fun)}
+              type = Module.concat(mod)
+              quote do: %unquote(evt){obv: %unquote(type){name: unquote(name)}, fun: unquote(fun)}
+
             expr -> expr
           end)}
 
@@ -127,7 +130,8 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Logic.Ref{name: name}) do
     J.member_expression(id(:G), to_ast(name), true)
   end
-  def to_ast(%Logic.Modify{name: name, type: _type, fun: fun}) do
+  def to_ast(%Logic.Modify{obv: obv, fun: fun}) do
+    %_type{name: name} = obv
     fun = Macro.expand(fun, __ENV__)
     fun = J.arrow_function_expression([id(name)], [], to_ast(fun))
     J.call_expression(id(:m), [id(name), fun])
@@ -201,8 +205,16 @@ defmodule TimeMachine.Compiler do
         J.variable_declaration(lib_decl ++ cod_decl ++ obv_decl ++ impure_tpls, :const),
         J.return_statement(to_ast(content))
       ]),
-      true,
+      false, # is_generator - someday, we should make async panels :)
       false
+    )
+    J.arrow_function_expression(
+      [J.object_pattern([id(:G),id(:C)])],
+      [],
+      J.block_statement([
+        J.variable_declaration(lib_decl ++ cod_decl ++ obv_decl ++ impure_tpls, :const),
+        J.return_statement(to_ast(content))
+      ])
     )
   end
   def to_ast(%Element{tag: tag, attrs: attrs, content: content}) do

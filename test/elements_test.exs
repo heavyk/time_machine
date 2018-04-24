@@ -34,9 +34,9 @@ defmodule ElementsTest do
 
   test "templates" do
     assert (tpl_test([val: 1234])) == %E{tag: :_template,
-                                         attrs: [pure: true, ids: [], name: :tpl_test],
-                                         content: %E{tag: :div,
-                                                     content: "test 1234"}}
+                                       attrs: [pure: true, ids: [], name: :tpl_test],
+                                     content: %E{tag: :div,
+                                             content: "test 1234"}}
   end
 
   test "fragments" do
@@ -81,7 +81,7 @@ defmodule ElementsTest do
   end
 
   test "obv/var logic" do
-    assert Logic.clean(tpl_logic_obv()) == Logic.clean(%E{content:
+    assert clean(tpl_logic_obv()) == clean(%E{content:
       %E{content: [
         %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
                               do: %E{content: "yay", tag: :div},
@@ -102,7 +102,7 @@ defmodule ElementsTest do
       ], tag: :_fragment
     }, tag: :_template, attrs: [ids: [num: :Obv], pure: true, name: :tpl_logic_obv]})
 
-    assert Logic.clean(tpl_logic_var()) == Logic.clean(%E{content:
+    assert clean(tpl_logic_var()) == clean(%E{content:
       %E{content: [
         %Logic.If{test: quote(do: %Logic.Var{name: "num"} == 2),
                              do: %E{content: "yay", tag: :div},
@@ -123,7 +123,7 @@ defmodule ElementsTest do
       ], tag: :_fragment
     }, tag: :_template, attrs: [ids: [num: :Var], pure: false, name: :tpl_logic_var]})
 
-    assert Logic.clean(tpl_logic_mixed([num: 2])) == Logic.clean(%E{content:
+    assert clean(tpl_logic_mixed([num: 2])) == clean(%E{content:
       %E{content: [
         %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} == 2),
                     do: %E{content: "yay", tag: :div},
@@ -167,4 +167,8 @@ defmodule ElementsTest do
       ], tag: :_fragment
     }, tag: :_template, attrs: [ids: [vv: :Var, oo: :Obv], pure: false, name: :tpl_logic_mixed]})
   end
+
+  # assert clean(tpl_transform_inline()) == clean(%E{content: nil}
+  #
+  # )
 end

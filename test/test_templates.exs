@@ -1,6 +1,34 @@
 defmodule TestTemplates do
   use TimeMachine
 
+  alias TimeMachine.Logic
+  alias Marker.Element
+
+  # the way that these elements are cleaned are indicative of what their content is.
+  # clean = a code block or value
+  # clean_quoted = escaped quoted expresion
+  def clean(ast) when is_list(ast) do
+    Enum.map(ast, &clean/1)
+  end
+  def clean(%Logic.Bind1{rhs: rhs, lhs: lhs}) do
+    %Logic.Bind1{rhs: Logic.clean_quoted(rhs), lhs: clean(lhs)}
+  end
+  def clean(%Logic.Assign{value: value, obv: obv}) do
+    %Logic.Assign{value: Logic.clean_quoted(value), obv: clean(obv)}
+  end
+  def clean(%Logic.Transform{fun: fun, obv: obv}) do
+    %Logic.Transform{fun: Logic.clean_quoted(fun), obv: clean(obv)}
+  end
+  def clean(%Logic.If{test: test_, do: do_, else: else_}) do
+    %Logic.If{test: Logic.clean_quoted(test_), do: clean(do_), else: clean(else_)}
+  end
+  def clean(%Element{tag: tag_, content: content_, attrs: attrs_}) do
+    %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
+  end
+  def clean(ast) do
+    Macro.update_meta(ast, fn (_meta) -> [] end)
+  end
+
   template :tpl_test do
     div "test #{@val}"
   end
@@ -147,6 +175,61 @@ defmodule TestTemplates do
     ~o(num) = 4
     div do
       tpl_logic_multi_obv_var()
+    end
+  end
+
+  template :tpl_transform_inline do
+    div do
+      input type: "number", value: ~o(num)
+      " + 10 = "
+      ~o(num) + 10
+    end
+  end
+
+  panel :pnl_transform_assign do
+    # num will inherit the value of any lower scope, if it exists...
+    # if not, the input box below will initialise it to 0
+    ~o(sum) <~ ~o(nuum) + 10
+    div do
+      input type: "number", value: ~o(num)
+      " + 10 = "
+      ~o(sum)
+    end
+  end
+
+  template :tpl_compute_inline do
+    div do
+      input type: "number", value: ~o(num1) # should initialise to 0 (or the assigned value of the env)
+      " + "
+      input type: "number", value: ~o(num2) # same
+      " = "
+      ~o(num1) + ~o(num2)
+    end
+  end
+
+  panel :pnl_compute_assign do
+    ~o(num1) = 10
+    ~o(num2) = 20
+    ~o(sum) <~ ~o(num1) + ~o(num2)
+    div do
+      input type: "number", value: ~o(num1)
+      " + "
+      input type: "number", value: ~o(num2)
+      " = "
+      ~o(sum)
+    end
+  end
+
+  # TODO: convert me to a proper test...
+  # the boink/pulse arrow needs testing
+  # also without an arrow -- tpl_boinker
+  template :tpl_adder do
+    div '.adder' do
+      h2 "button adder"
+      div '.buttons' do
+        button "++", [boink: ~o(num) <- num + 1]
+        button "--", [boink: ~o(num) <- num - 1]
+      end
     end
   end
 end

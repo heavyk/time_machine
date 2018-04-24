@@ -1,11 +1,19 @@
 
 ### current effort
 
-- get_ids does not take Logic.Modify into account. test to be sure this is working
+- template does not have any assigns. it can neither define any transformations (a panel can however) - enforce this
+- turn cond statements into multiple if-statements (eg. from top to bottom where the else is the next if)
+- `input type: "number", value: ~o(num1)` needs to bind the obv to the value, eg. `el = h('input', ...); num1 = attribute(el)`
+  - maybe, another function should be made: `el = bind_value(h('input', ...), obv)` this way the return is the element and the value is saved into the obv
+  - or, h('input', {type: 'number', value: obv, ...}) and hyper-hermes auto binds the obv to the value (for ~v(vars))
+  - or, h('input', {type: 'number', observe: {value: obv}, ...}) (for ~o(obvs))
+- get_ids does not take `Logic.Boink` into account. test to be sure this is working
   - eg. when I refer to the obv, `num` it should be defined in the inner transform / compute
-- write tests for `Modify`
-- write tests for `Bind1`, `Bind2`
-- write tests for `boink: ~o(obv)` translates directly into a `Modify`
+- write tests for `Boink` / `Press`
+- write tests for `Bind1` / `Bind2`
+- write tests for `boink: ~o(obv)` translates directly into a `Boink` without a function
+  - perhaps these should translate into:
+    - `h('div', {observe: {boink: obv, press: obv, value: obv, select: obv, input: obv, hover: obv, focus: obv}})`
 - explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
   - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,v.. etc.
 ```js
@@ -45,6 +53,7 @@ function button_adder (G, {cod}) {
   - those call `MyModule.__marker__(opt1: true, opt2: "lala")` - which then returns some `%Marker.Element{tag: :div, content: ...}`
     - should integrate easily with the concept of `Marker.add_arg(el, arg, env)` and customised things can be done later with the element  attrs / content.
   - it could be kind of cool if `use TimeMachine.Logic` was all that was needed to make it awesome. (what is "awesome"? pfft. hell if I know, yet)
+- `NameSpaceman` is a gen_server for holding scopes
 
 ### element interactions
 
@@ -72,7 +81,12 @@ function button_adder (G, {cod}) {
   - the totality of the "thing" is the "universe" where all pure templates are stored and conditions are defined
   - panel is a visual section of the "thing" - where a sub environment is made, and if any impure templates
 
+### async scopes
+
+- use generators / promises to allow for things to happen asynchronously
+
 ### optimiser
+
 - make a gen_server which stores information about the ast (like variable name and scope)
 - and can do things like rename variables and stuff
 
@@ -96,6 +110,8 @@ function button_adder (G, {cod}) {
 ### smallish things
 
 - add opts to the compiler and store some basic state in it (like parent node and stuff)
+- since ~O(env_obv) / ~o(local_obv) --> ~V(env_var) / ~v(local_var)
+  - however, I cannot really think of a good reason why local vars would be desired (and for now, it will just create unnecessary complexity)
 
 ### cool ideas
 
