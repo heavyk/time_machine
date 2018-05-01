@@ -113,6 +113,38 @@ defmodule CompilerTest do
     end
   end
 
+  test "case statement is not yet supported" do
+    assert_raise RuntimeError, fn ->
+      quote do
+        template :no_case_statement do
+          case ~o(yum) do
+            11 -> div "not gonna work"
+            _ -> div "neither this"
+          end
+        end
+      end
+      |> Logic.clean_quoted()
+      |> Logic.handle_logic()
+    end
+  end
+
+  test "cond statement cannot have guard clauses" do
+    assert_raise RuntimeError, fn ->
+      quote do
+        template :no_guard_clauses do
+          cond do
+            ~o(lala) when is_nil(~o(lala)) -> div "not gonna work"
+            ~o(lala) == 11 when is_integer(~o(lala)) -> div "not gonna work"
+            true -> div "nope"
+          end
+        end
+      end
+      |> Logic.clean_quoted()
+      |> Logic.handle_logic()
+      |> IO.inspect
+    end
+  end
+
   test "injected js renders proprly and plays nicely" do
     # TODO - ~j/var lala = 1234/ renders correctly
     # TODO - bonus: it'd be nice if it detected the existance of this environmental `Var`

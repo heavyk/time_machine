@@ -184,17 +184,17 @@ defmodule ElementsTest do
       |> clean()
 
     assert tpl_logic_if()
-    |> Logic.handle_logic()
-    |> Logic.clean_quoted()
-    |> clean() == Map.replace!(v_els, :attrs,
-        Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_if end)
-      )
+      |> Logic.handle_logic()
+      |> Logic.clean_quoted()
+      |> clean() == Map.replace!(v_els, :attrs,
+          Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_if end)
+        )
 
     assert tpl_logic_cond()
-    |> Logic.handle_logic()
-    |> Logic.clean_quoted()
-    |> clean() == Map.put(v_els, :attrs,
-        Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_cond end)
-      )
+      |> Logic.handle_logic()
+      |> Logic.clean_quoted()
+      |> clean() == Map.put(v_els, :attrs,
+          Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_cond end)
+        )
   end
 end

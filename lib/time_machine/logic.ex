@@ -214,17 +214,27 @@ defmodule TimeMachine.Logic do
             clauses = :lists.reverse(clauses)
             expr = Enum.reduce(clauses, starter, fn
               {:->, _, [cases, do__]}, {:%, _, [_, {_, _, [test: test_, do: do_, else: _else_]}]} = prev ->
-                test__ = cases |> hd() |> Macro.escape()
-                # TODO: add a check to be sure the "true" statement does exist, and that it is in fact the last statement
+                test__ = case cases |> hd() do
+                  {op, _meta, _} = t when op in [:==, :!=, :===, :!==, :<, :<=, :>, :>=] -> t
+                  b when is_boolean(b) -> b
+                  {:when, _, _} -> raise "guard clauses are not yet supported"
+                  c -> raise "unknown condition: #{inspect c}"
+                end |> Macro.escape()
+
+                # TODO: do a check to be sure the "true" statement does exist, and that it is in fact the last statement
                 else__ = case test__ do
                   true -> nil
                   _ ->
+                    # if the previous statement is: if(true) { do_ } - this removes the if-statement (cause it's alwaays true)
+                    # someday, this can be removed, as a dead-code removal tool will optimise any always true/false statements.
                     case test_ do
                       true -> do_
                       _ -> prev
                     end
                 end
+
                 quote do: %Logic.If{test: unquote(test__), do: unquote(do__), else: unquote(else__)}
+
               expr, acc -> raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
                   "for whatever reason you have made an irregular cond statement that time_machine does not understand.\n" <>
                   "\n  expression: #{inspect expr}" <>
