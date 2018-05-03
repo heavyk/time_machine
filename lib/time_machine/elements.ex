@@ -2,8 +2,10 @@ defmodule TimeMachine.Elements do
   use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
-    # tags: [:div, :span, :ul, :li, :a, :p, :img, :input, :label, :button, :h1, :h2, :h3],
-    tags: [:div, :span, :ul, :li, :a, :p, :br, :img, :input, :label, :button, :header, :nav, :main, :h1, :h2, :h3, :h4],
+    tags: [:div, :span, :ul, :li, :a, :p, :b, :i, :br, :img,
+           :input, :label, :button, :select, :option,
+           :header, :nav, :main, :h1, :h2, :h3, :h4, :hr,
+           :html, :head, :meta, :link, :script, :title, :body],
     containers: [:template, :component, :panel]
 
   @transformers [ &TimeMachine.Logic.handle_logic/2 ]
