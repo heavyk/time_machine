@@ -1,13 +1,19 @@
 
 ### current effort
 
+- `Logic.Assign` -> `Logic.Define` (obvs never get reassigned; they only get transformed)
 - turn cond statements into multiple if-statements (eg. from top to bottom where the else is the next if)
 - `input type: "number", value: ~o(num1)` needs to bind the obv to the value, eg. `el = h('input', ...); num1 = attribute(el)`
   - maybe, another function should be made: `el = bind_value(h('input', ...), obv)` this way the return is the element and the value is saved into the obv
-  - or, h('input', {type: 'number', value: obv, ...}) and hyper-hermes auto binds the obv to the value (for ~v(vars))
+  - or, h('input', {type: 'number', value: obv, ...}) and hyper-hermes automatically sets the value (for ~v(vars))
   - or, h('input', {type: 'number', observe: {value: obv}, ...}) (for ~o(obvs))
 - get_ids does not take `Logic.Boink` into account. test to be sure this is working
+  - same for `Logic.Bind1`
+  - same for `Logic.Bind2`
+  - same for `Logic.Transform`
+  - same for `Logic.??`
   - eg. when I refer to the obv, `num` it should be defined in the inner transform / compute
+    - this is kinda hairy though... I need a better way of referring to the obv being modified by the boink function
 - write tests for `Boink` / `Press`
 - write tests for `Bind1` / `Bind2`
 - write tests for `boink: ~o(obv)` translates directly into a `Boink` without a function
@@ -104,7 +110,11 @@ function button_adder (G, {cod}) {
   -> templates are kinda like 'pages' and components are different things inside the templates
 - create a hook when compiling the module to also compile the module's css
 - ~j/var js_var = 1; console.log('jsvar:', js_var)/ will get inlined into the resulting function
-- ensure all variable names are stored as atoms instead of binaries
+- store variable names as atoms instead of binaries
+- instead kw lists, use a map! - https://elixir-lang.org/getting-started/keywords-and-maps.html
+- improve errors
+  - ErrorInternalBadness - boilerplate misunderstanding of elixir to js conversion
+  - ErrorIncompatibleAwesomeness - stuff like ~o(lala) and ~v(lala) cannot coexist in the same template
 
 ### smallish things
 
@@ -127,6 +137,7 @@ function button_adder (G, {cod}) {
   - this will allow a bridge for js-oriented person to be able to start integrating those ractive-like panels.
   - then, once familiar with that, it may be easier to ease into the elixir side of things as an obvious improvement.
   - this should be held off as long as possible though, to encourage the use of metaprogramming in elixir to reach new heights of complexity -- eg. a gmail clone should appear relatively easy.
+- TODO MVC demo
 
 ------------------------
 
@@ -144,3 +155,7 @@ for settings, add ability to edit sounds as well as the pomodoro settings
   h('div', transform(num, (v) => !v ? 'yay' : 'nope'))
 ]
 ```
+
+### notes
+
+- debug: https://onor.io/2016/02/17/quick-elixir-debugging-tip/
