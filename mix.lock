@@ -1,0 +1,6 @@
+%{
+  "colors": {:hex, :colors, "1.1.1", "9e6d0c6bbf44447e9fd4a2929db98f95ce4e2181b33d57ae8f30e8c1ce12935c", [:mix], []},
+  "file_system": {:hex, :file_system, "0.2.4", "f0bdda195c0e46e987333e986452ec523aed21d784189144f647c43eaf307064", [:mix], []},
+  "focus": {:hex, :focus, "0.3.5", "ba9f2c3cc6ea9398db66ebbb859ba22d91341d64f6f771e87f7679b5bff1c6a1", [:mix], []},
+  "mix_test_watch": {:hex, :mix_test_watch, "0.6.0", "5e206ed04860555a455de2983937efd3ce79f42bd8536fc6b900cc286f5bb830", [:mix], [{:file_system, "~> 0.2.1 or ~> 0.3", [hex: :file_system, optional: false]}]},
+}
