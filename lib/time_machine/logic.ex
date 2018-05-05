@@ -64,7 +64,7 @@ defmodule TimeMachine.Logic.Modify do
             fun: nil
 end
 
-# double event listener which sets the result of `fun` into `set`
+# up/down event listener which sets the result of `fun` into `set`
 defmodule TimeMachine.Logic.Press do
   defstruct tag: :_P,
             obv: nil,
@@ -186,8 +186,7 @@ defmodule TimeMachine.Logic do
         ids = get_ids(expr, [:Obv, :Condition])
         len = length(ids)
         obv = Enum.map(ids, fn {name, type} ->
-          type = Module.concat([:TimeMachine, :Logic, type])
-          quote do: %unquote(type){name: unquote(name)}
+          quote do: %unquote(logic_module(type)){name: unquote(name)}
         end)
         # IO.puts "op: #{op} #{len} #{inspect ids} #{inspect fun}"
         expr = cond do
@@ -283,10 +282,10 @@ defmodule TimeMachine.Logic do
             {expr, info}
         end
 
-      { op, _meta, [{:%, [], [{:__aliases__, _, [:TimeMachine, :Logic, type] = mod}, {:%{}, [], [name: name]}]}, value]}, info when op in [:=, :<~] ->
-        # IO.puts "assignment: #{inspect type} #{name} = #{inspect value}"
-        # TODO: verify that <~ value is in fact a transformation or some sort of permutation
+      { op, meta, [{:%, [], [{:__aliases__, _, [:TimeMachine, :Logic, type] = mod}, {:%{}, [], [name: name]}]}, value]} = blk, info when op in [:=, :<~, :<~>] ->
+        # TODO: resolve literal expressions: eg. {:+, _, [3, 5]}, should resolve to be a literal 8
         # IO.puts "assign: #{op} #{type} #{name} #{inspect value}"
+        defines = info[:init]
         literal = is_literal(value)
         cond do
           op == :<~ and literal ->
@@ -294,15 +293,25 @@ defmodule TimeMachine.Logic do
           op == := and not literal ->
             raise RuntimeError, "cannot assign value '#{inspect value}' because it is not a literal"
           op == :<~ and type != :Obv ->
-            raise RuntimeError, "#{name} should be an Obv - you cannot store a permutation in anything other than an Obv"
-          # op == :<~ and not is_transform(value) ->
-          #   raise RuntimeError, "#{name} should be a transformation"
+            raise RuntimeError, "#{name} should be an Obv - you cannot store a permutation into anything other than an Obv"
+          op == :<~ and type_of(value) != :Transform and type_of(value) != :Obv ->
+            raise RuntimeError, "#{name} should be a transformation -- it's value is #{type_of(value)} - #{inspect value}"
           true -> nil
         end
-        type = Module.concat(mod)
-        expr = quote do: %Logic.Assign{obv: %unquote(type){name: unquote(name)}, value: unquote(value)}
+        full_type = Module.concat(mod)
+        expr = cond do
+          op == := ->
+            quote do: %Logic.Assign{obv: %unquote(full_type){name: unquote(name)}, value: unquote(value)}
+          op == :<~ and type_of(value) == :Obv ->
+            # badness + remember to add the remove to cleanupFuncs
+            quote do: %Logic.Bind1{lhs: %unquote(full_type){name: unquote(name)}, rhs: unquote(value)}
+          op == :<~> and type_of(value) == :Obv ->
+            # badness + remember to add the remove to cleanupFuncs
+            quote do: %Logic.Bind2{lhs: %unquote(full_type){name: unquote(name)}, rhs: unquote(value)}
+          true ->
+            raise TemplateCompileError, Keyword.put(meta, :err, {"dunno what to do with this: ~o(#{name}) #{op} #{Macro.to_string value}", "\nvalue: #{inspect value}"})
+        end
         name = String.to_atom(name)
-        defines = info[:defines]
         defines = cond do
           is_list(defines) ->
             case t = Keyword.get(defines, name) do
@@ -311,9 +320,9 @@ defmodule TimeMachine.Logic do
               _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
             end
           true ->
-            raise RuntimeError, "no good! you cannot assign things in a template. use a panel to create a new 'environment' in which you can define things"
+            raise TemplateCompileError, Keyword.put(meta, :err, :cannot_define)
         end
-        info = Keyword.put(info, :defines, defines)
+        info = Keyword.put(info, :init, defines)
         {expr, info}
 
       {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->
@@ -415,6 +424,10 @@ defmodule TimeMachine.Logic do
     Module.split(alias_) |> Enum.map(&String.to_atom/1)
   end
 
+  defp logic_module(mod) when is_atom(mod) do
+    Module.concat([:TimeMachine, :Logic, mod])
+  end
+
   defp do_fun(block, ids) do
     Macro.postwalk(block, fn
       {:__aliases__, [alias: alias_], _mod} when is_atom(alias_) and alias_ != false -> # is this necessary?
@@ -431,6 +444,9 @@ defmodule TimeMachine.Logic do
     end)
     |> Macro.escape()
   end
+
+  defp type_of({:%, _, [{:__aliases__, _, mod}, _]}) when is_list(mod), do: List.last(mod)
+  defp type_of(_), do: false
 
   defp is_literal(v) when is_list(v), do: Enum.all?(v, &is_literal/1)
   defp is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v), do: true

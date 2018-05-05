@@ -131,6 +131,10 @@ function button_adder (G, {cod}) {
     end
 
 
+### errors
+
+I really want to make the errors show up in phoenix in such a way where it will show the error, the relevant code, suggestions and other things. I also want to begin moving the interface away from a line based view of the error, and into more of a code block sort of view... like blocks of ast (and potential transformations that can be done on them to fix the error)
+
 ### ideas to streamline future adoption
 
 - (maybe) convert the Eml html parser to make ractive-like "panel" files where there is: html,css,script sections.

@@ -111,7 +111,7 @@ defmodule TimeMachine.Elements do
   @doc "panel is like a template, but it defines a new js scope (env)"
   defmacro panel(name, do: block) when is_atom(name) do
     use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, [name: name, defines: []]}, fn t, {blk, info} -> t.(blk, info) end)
+    {block, info} = Enum.reduce(@transformers, {block, [name: name, init: []]}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
