@@ -185,18 +185,19 @@ defmodule TimeMachine.Compiler do
     impure_tpls = [] # TODO: define all non-pure inner templates inside of the panel here...
     # TODO: need a way to find inner template references (and subquently their cod/var)
     obvs = Logic.get_ids(content, :Obv)
-    obv_init = [] # TODO: some way of finding assignment expressions... eg. Logic.get_init(content)
+    # ids = Keyword.get(info, :ids, [])
+    obv_init = Keyword.get(info, :init, [])
+    obvs = case Keyword.get(info, :pure) do
+      # true -> obvs
+      _ -> Keyword.merge(obvs, obv_init)
+    end
+    # IO.puts "obvs: #{inspect obvs}"
     obv_decl = case length(obvs) do
       0 -> []
-      _ -> Enum.map(obvs, fn {k, _v} -> J.variable_declarator(id(k), val(Keyword.get(obv_init, k))) end)
+      _ -> Enum.map(obvs, fn {k, _type} ->
+        J.variable_declarator(id(k), val(Keyword.get(obv_init, k)))
+      end)
     end
-    # TODO: get_ids(content, :Var) -- also for each non-pure template, as well..
-    # so, to get this doing well,
-    # args = cond do
-    #   length(obvs) > 0 -> [J.object_pattern(obvs)]
-    #   true -> []
-    # end
-    # out_fn = J.arrow_function_expression(args, [], to_ast(content))
     J.function_declaration(
       id(info[:name]),
       [J.object_pattern([id(:G),id(:C)])],

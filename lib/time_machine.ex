@@ -29,7 +29,7 @@ defmodule TimeMachine do
     # set the obv value like this: (later, see how this interacts with the way the different panels below set it)
     # ~o(is_toggled) = true
     div '.toggle-button' do
-      button "toggle me", [boink: ~o(is_toggled)]
+      # button "toggle me", [boink: ~o(is_toggled)]
       div '.button-value' do
         if ~o(is_toggled) do
           span "toggled: ON!"
@@ -57,8 +57,8 @@ defmodule TimeMachine do
     div '.adder' do
       h2 "button adder"
       div '.buttons' do
-        button "++", [boink: ~o(num) <- num + 1]
-        button "--", [boink: ~o(num) <- num - 1]
+        button "++", boink: ~o(num) <- ~o(num) + 1
+        button "--", boink: ~o(num) <- ~o(num) - 1
       end
     end
   end
@@ -89,8 +89,9 @@ defmodule TimeMachine do
   end
 
   panel :two_way_binding do
+    # now, notice that whenever you press the 'press' button, pressed is always exactly the opposite of toggled
     ~o(is_toggled) = true
-    ~o(is_toggled) <~> ~o(is_pressed)
+    ~o(is_pressed) <~ ~o(is_toggled)
     div '.buttons' do
       h2 "some buttons you can press"
       press_button()

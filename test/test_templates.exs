@@ -22,8 +22,13 @@ defmodule TestTemplates do
   def clean(%Logic.If{test: test_, do: do_, else: else_}) do
     %Logic.If{test: Logic.clean_quoted(test_), do: clean(do_), else: clean(else_)}
   end
+  def clean(%Element{tag: :_template, content: content_, attrs: attrs_}) do
+    # %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
+    %Element{tag: :_template, content: clean(content_), attrs: Keyword.drop(attrs_, [:file, :line]) |> clean()}
+  end
   def clean(%Element{tag: tag_, content: content_, attrs: attrs_}) do
-    %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
+    # %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
+    %Element{tag: tag_, content: clean(content_), attrs: Keyword.drop(attrs_, [:file, :line]) |> clean()}
   end
   def clean(ast) do
     Macro.update_meta(ast, fn (_meta) -> [] end)
@@ -185,7 +190,7 @@ defmodule TestTemplates do
   end
 
   panel :pnl_obv_assign do
-    ~o(num) = 4
+    ~o(num) = 2 + 2
     div "num is", ~o(num)
   end
 
@@ -214,7 +219,7 @@ defmodule TestTemplates do
   panel :pnl_transform_assign do
     # num will inherit the value of any lower scope, if it exists...
     # if not, the input box below will initialise it to 0
-    ~o(sum) <~ ~o(nuum) + 10
+    ~o(sum) <~ ~o(num) + 10
     div do
       input type: "number", value: ~o(num)
       " + 10 = "
@@ -245,6 +250,60 @@ defmodule TestTemplates do
     end
   end
 
+  panel :pnl_one_way_biniding do
+    ~o(num1) = 10
+    ~o(num2) = 20
+    ~o(sum1) <~ ~o(num1) + ~o(num2)
+    ~o(sum2) <~ ~o(sum1)
+    div do
+      input type: "number", value: ~o(num1)
+      " + "
+      input type: "number", value: ~o(num2)
+      " = "
+      ~o(sum1)
+      " = "
+      ~o(sum2)
+    end
+  end
+
+  panel :pnl_two_way_binding do
+    ~o(num1) <~> ~o(num2)
+    div do
+      input type: "number", value: ~o(num1)
+      " * "
+      input type: "number", value: ~o(num2)
+      " * "
+      input type: "number", value: ~o(num3)
+      " = "
+      (~o(num1) * ~o(num2) * ~o(num3))
+    end
+  end
+
+  #
+  # `[[obv]] = [[literal]]` initialises [[obv]] to the value of [[literal]]
+  #   - cannot happen in a template. must happen in a scope definition (eg. a panel)
+  #   - can only define a variable in a scope's initial value (and that value must be a literal)
+  #   - must be found before the last line of a template
+  #
+  # `[[obv]] <- [[expr]]` is a one-shot asssignment of the value of [[expr]] into [[obv]]
+  #   - if found as an element event listener, it'll save the result of expression into [[obv]] whenever fired
+  #   - cannot be found before the last line of a template. if so, recommend its conversion to an initialisation or transformation
+  #   - [[expr]] can be a literal value, or any other mix of any real-time or otherwise values
+  #   - can be executed in a conditionally (eg. inside of an if or cond statement)
+  #
+  # `[[obv]] <~ [[expr]]` updates [[obv]] in real-time, any time the value of [[expr]] changes
+  #   - if found before the last line of a template:
+  #     - signifies the definition of a value as the real-time computation of [[expr]
+  #     - or, it signifies a 1-way binding if [[expr]] is another [[obv]]
+  #   - must be found before the last line of a template
+  #   - will raise an error if [[expr]] is a literal
+  #
+  # `[[obv]] <~> [[obv]]` two-way binding between obvs
+  #   - neither side can be anything other than [[obv]]
+  #   - must be found before the last line of a template
+  #   - cannot be conditionally assigned (this restriction can potentially be relaxed - as could be otherwise)
+  #
+
   # TODO: convert me to a proper test...
   # the boink/pulse arrow needs testing
   # also without an arrow -- tpl_boinker
@@ -252,8 +311,8 @@ defmodule TestTemplates do
     div '.adder' do
       h2 "button adder"
       div '.buttons' do
-        button "++", [boink: ~o(num) <- num + 1]
-        button "--", [boink: ~o(num) <- num - 1]
+        button "++", [boink: ~o(num) <- ~o(num) + 1]
+        button "--", [boink: ~o(num) <- ~o(num) - 1]
       end
     end
   end

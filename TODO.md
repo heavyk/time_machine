@@ -163,3 +163,4 @@ for settings, add ability to edit sounds as well as the pomodoro settings
 ### notes
 
 - debug: https://onor.io/2016/02/17/quick-elixir-debugging-tip/
+- const stuff: https://github.com/jcomellas/ex_const

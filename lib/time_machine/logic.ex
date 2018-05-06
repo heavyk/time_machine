@@ -43,14 +43,14 @@ defmodule TimeMachine.Logic.Permutation do
           value: nil
 end
 
-# one-way bindings (set the lhs every time the rhs changes)
+# one-way bindings (set the lhs every time the rhs changes), beginning with the rhs value
 defmodule TimeMachine.Logic.Bind1 do
   defstruct tag: :_b1,
             lhs: nil,
             rhs: nil
 end
 
-# two-way bindings, beginning with the lhs value
+# two-way bindings, beginning with the rhs value
 defmodule TimeMachine.Logic.Bind2 do
   defstruct tag: :_b2,
             lhs: nil,
@@ -186,7 +186,8 @@ defmodule TimeMachine.Logic do
         ids = get_ids(expr, [:Obv, :Condition])
         len = length(ids)
         obv = Enum.map(ids, fn {name, type} ->
-          quote do: %unquote(logic_module(type)){name: unquote(name)}
+          type = logic_module(type)
+          quote do: %unquote(type){name: unquote(name)}
         end)
         # IO.puts "op: #{op} #{len} #{inspect ids} #{inspect fun}"
         expr = cond do
@@ -265,7 +266,7 @@ defmodule TimeMachine.Logic do
         # there's no way the Kernel.in() guard clause is any faster.
 
       { :case, _meta, _ } = _expr, _info ->
-        raise "case statements are not transformed to js yet - if ever. use a cond statement instead"
+        raise "case statements are not (yet) transformed to js. use a cond statement for now"
 
       { :if, _meta, [lhs, rhs]} = expr, info ->
         ids = Logic.get_ids(expr)
@@ -282,47 +283,89 @@ defmodule TimeMachine.Logic do
             {expr, info}
         end
 
-      { op, meta, [{:%, [], [{:__aliases__, _, [:TimeMachine, :Logic, type] = mod}, {:%{}, [], [name: name]}]}, value]} = blk, info when op in [:=, :<~, :<~>] ->
-        # TODO: resolve literal expressions: eg. {:+, _, [3, 5]}, should resolve to be a literal 8
-        # IO.puts "assign: #{op} #{type} #{name} #{inspect value}"
-        defines = info[:init]
+      # = <- <~ <~>
+      { op, meta, [{:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}, quoted_value]}, info when op in [:=, :<-, :<~, :<~>] ->
+        #
+        # `[[obv]] = [[literal]]` initialises [[obv]] to the value of [[literal]]
+        #   - cannot happen in a template. must happen in a scope definition (eg. a panel)
+        #   - can only define a variable in a scope's initial value (and that value must be a literal)
+        #   - must be found before the last line of a template
+        #
+        # `[[obv]] <- [[expr]]` is a one-shot asssignment of the value of [[expr]] into [[obv]]
+        #   - if found as an element event listener, it'll save the result of expression into [[obv]] whenever fired
+        #   - cannot be found before the last line of a template. if so, recommend its conversion to an initialisation or transformation
+        #   - [[expr]] can be a literal value, or any other mix of any real-time or otherwise values
+        #   - can be executed in a conditionally (eg. inside of an if or cond statement)
+        #
+        # `[[obv]] <~ [[expr]]` updates [[obv]] in real-time, any time the value of [[expr]] changes
+        #   - if found before the last line of a template:
+        #     - signifies the definition of a value as the real-time computation of [[expr]
+        #     - or, it signifies a 1-way binding if [[expr]] is another [[obv]]
+        #   - must be found before the last line of a template
+        #   - will raise an error if [[expr]] is a literal
+        #
+        # `[[obv]] <~> [[obv]]` two-way binding between obvs (beginning with the rhs value)
+        #   - neither side can be anything other than [[obv]]
+        #   - must be found before the last line of a template
+        #   - cannot be conditionally assigned (this restriction can potentially be relaxed - as could be otherwise)
+        #
+        init = info[:init]
+        ids = info[:ids]
+        value = case try_eval(quoted_value) do
+          :error -> quoted_value
+          v -> Macro.escape(v)
+        end
         literal = is_literal(value)
         cond do
           op == :<~ and literal ->
-            raise RuntimeError, "assigning literal '#{value}' into #{name} - instead, use '=' for assignment"
+            tpl_err meta, info, {"assigning literal '#{value}' into #{name}", "instead, use '=' for assignment"}
           op == := and not literal ->
-            raise RuntimeError, "cannot assign value '#{inspect value}' because it is not a literal"
+            tpl_err meta, info, {"'#{inspect value}' is not literal", "try using <~"}
           op == :<~ and type != :Obv ->
-            raise RuntimeError, "#{name} should be an Obv - you cannot store a permutation into anything other than an Obv"
+            tpl_err meta, info, {"a transformation must be stored into an Obv", "try converting #{name} into an Obv"}
           op == :<~ and type_of(value) != :Transform and type_of(value) != :Obv ->
-            raise RuntimeError, "#{name} should be a transformation -- it's value is #{type_of(value)} - #{inspect value}"
+            tpl_err meta, info, {"cannot store a #{type_of(value)} as a transformation", "??? #{inspect value}"}
           true -> nil
         end
-        full_type = Module.concat(mod)
+        mod = logic_module(type)
         expr = cond do
           op == := ->
-            quote do: %Logic.Assign{obv: %unquote(full_type){name: unquote(name)}, value: unquote(value)}
-          op == :<~ and type_of(value) == :Obv ->
-            # badness + remember to add the remove to cleanupFuncs
-            quote do: %Logic.Bind1{lhs: %unquote(full_type){name: unquote(name)}, rhs: unquote(value)}
+            quote do: %Logic.Assign{obv: %unquote(mod){name: unquote(name)}, value: unquote(value)}
+          op == :<~ ->
+            case type_of(value) do
+              :Obv -> quote do: %Logic.Bind1{lhs: %unquote(mod){name: unquote(name)}, rhs: unquote(value)}
+              :Transform -> value
+            end
+          op == :<- and type_of(value) == :Transform ->
+            transform = try_eval(value)
+            obv = Map.get(transform, :obv)
+            fun = Map.get(transform, :fun)
+            quote do: %Logic.Modify{obv: unquote(obv), fun: unquote(fun)}
           op == :<~> and type_of(value) == :Obv ->
-            # badness + remember to add the remove to cleanupFuncs
-            quote do: %Logic.Bind2{lhs: %unquote(full_type){name: unquote(name)}, rhs: unquote(value)}
+            quote do: %Logic.Bind2{lhs: %unquote(mod){name: unquote(name)}, rhs: unquote(value)}
           true ->
-            raise TemplateCompileError, Keyword.put(meta, :err, {"dunno what to do with this: ~o(#{name}) #{op} #{Macro.to_string value}", "\nvalue: #{inspect value}"})
+            tpl_err meta, info, {"UNKNOWN: dunno what to do with this:\n    ~o(#{name}) #{op} #{Macro.to_string value}", "\n    #{inspect value}"}
         end
         name = String.to_atom(name)
-        defines = cond do
-          is_list(defines) ->
-            case t = Keyword.get(defines, name) do
-              nil -> Keyword.put(defines, name, type)
-              ^type -> defines
-              _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
+        info = cond do
+          op == :<- -> info # doesn't define anything new
+          is_list(init) ->
+            # if init is a list, the container can initialise values
+            init = case init_val = Keyword.get(init, name) do
+              nil -> Keyword.put(init, name, value)
+              _ -> tpl_err meta, info, {"#{name} is already initialised to #{inspect init_val}.", "you cannot also initialise it to be #{inspect value} in the same template"}
             end
-          true ->
-            raise TemplateCompileError, Keyword.put(meta, :err, :cannot_define)
+            ids = case t = Keyword.get(ids, name) do
+              nil -> Keyword.put(ids, name, type)
+              ^type -> ids
+              # _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
+              _ -> tpl_err meta, info, {"#{name} is already a #{t}. it cannot be redefined to be a #{type} in the same template", "TODO: suggestion"}
+            end
+            Keyword.put(info, :init, init)
+          true -> tpl_err meta, info, :cannot_define
         end
-        info = Keyword.put(info, :init, defines)
+        # IO.puts "expr: #{inspect expr}\n"
+        expr = Macro.escape(expr)
         {expr, info}
 
       {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->
@@ -445,10 +488,52 @@ defmodule TimeMachine.Logic do
     |> Macro.escape()
   end
 
+  defp try_eval(quoted_value) do
+    env = __ENV__
+    try do
+      eval_result = quoted_value
+      |> Macro.expand_once(env)
+      |> Code.eval_quoted([], env)
+      case eval_result do
+        {eval_value, []} -> eval_value #|> Macro.escape()
+        {_value, vars} -> :error
+      end
+    rescue
+      _ -> :error
+    catch
+      _ -> :error
+    end
+  end
+
+  defp tpl_err(meta, info, err) do
+    raise TemplateCompileError, Keyword.merge(info, meta) |> Keyword.put(:err, err)
+  end
+
+  defp type_of(%mod{}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
+  defp type_of({:%{}, _, [{:__struct__, mod} | _]}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
   defp type_of({:%, _, [{:__aliases__, _, mod}, _]}) when is_list(mod), do: List.last(mod)
   defp type_of(_), do: false
 
   defp is_literal(v) when is_list(v), do: Enum.all?(v, &is_literal/1)
   defp is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v), do: true
   defp is_literal(_), do: false
+end
+
+defmodule TimeMachine.Logic.Do do
+  # TODO: make lot's of generic builder functions like this one and get rid of a lot the quotes
+  defp value(name, type \\ :Obv) do
+    full_type = logic_module(type)
+    quote do: %unquote(full_type){name: unquote(name)}
+  end
+
+  defp if(test, do_, else_) do
+    case is_literal(test) do
+      false -> quote do: %Logic.If{test: unquote(test_), do: unquote(do_), else: unquote(else_)}
+      true ->
+        cond do
+          !!test -> quote do: unquote(do_)
+          true -> quote do: unquote(else_)
+        end
+    end
+  end
 end

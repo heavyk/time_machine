@@ -21,9 +21,19 @@ defmodule TemplateCompileError do
   ]
 
   def exception(meta) do
-    pinfo = Process.info(self())
+    meta = cond do
+      is_tuple(meta) -> [err: meta]
+      is_binary(meta) -> [err: {meta, ""}]
+      is_list(meta) -> meta
+      true -> raise "cannot raise invalid param to #{__MODULE__}"
+    end
     line = Keyword.get(meta, :line)
-    file = Keyword.get(pinfo[:dictionary], :elixir_compiler_file)
+    file = case Keyword.get(meta, :file) do
+      nil ->
+        pinfo = Process.info(self())
+        Keyword.get(pinfo[:dictionary], :elixir_compiler_file)
+      v -> v
+    end
     err = Keyword.get(meta, :err)
     {message, suggestion} =
       cond do

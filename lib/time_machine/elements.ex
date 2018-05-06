@@ -96,8 +96,10 @@ defmodule TimeMachine.Elements do
 
   @doc "Define a new template"
   defmacro template(name, do: block) when is_atom(name) do
-    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
+    caller = __CALLER__
+    use_elements = Module.get_attribute(caller.module, :marker_use_elements)
+    info = [name: name, file: caller.file, line: caller.line]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
@@ -110,8 +112,10 @@ defmodule TimeMachine.Elements do
 
   @doc "panel is like a template, but it defines a new js scope (env)"
   defmacro panel(name, do: block) when is_atom(name) do
-    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, [name: name, init: []]}, fn t, {blk, info} -> t.(blk, info) end)
+    caller = __CALLER__
+    use_elements = Module.get_attribute(caller.module, :marker_use_elements)
+    info = [name: name, file: caller.file, line: caller.line, init: []]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
@@ -124,9 +128,11 @@ defmodule TimeMachine.Elements do
 
   # @doc "component is a contained ... TODO - work all this out"
   defmacro component(name, do: block) when is_atom(name) do
+    caller = __CALLER__
     template = String.to_atom(Atom.to_string(name) <> "__template")
-    use_elements = Module.get_attribute(__CALLER__.module, :marker_use_elements)
-    {block, info} = Enum.reduce(@transformers, {block, [name: name]}, fn t, {blk, info} -> t.(blk, info) end)
+    use_elements = Module.get_attribute(caller.module, :marker_use_elements)
+    info = [name: name, file: caller.file, line: caller.line]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
     quote do
       defmacro unquote(name)(c1 \\ nil, c2 \\ nil, c3 \\ nil, c4 \\ nil, c5 \\ nil) do
         caller = __CALLER__
