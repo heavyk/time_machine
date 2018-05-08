@@ -396,7 +396,7 @@ defmodule TimeMachine.Logic do
       {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
         cond do
           mod_a == false -> Module.concat(mod)
-          is_list(mod) && mod_a == false -> Module.concat(mod)
+          is_list(mod) and mod_a == false -> Module.concat(mod)
           is_atom(mod_a) -> mod_a
           is_atom(mod) -> mod
           true -> raise "unknown alias"
@@ -421,7 +421,7 @@ defmodule TimeMachine.Logic do
       {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
         cond do
           mod_a == false -> Module.concat(mod)
-          is_list(mod) && mod_a == false -> Module.concat(mod)
+          is_list(mod) and mod_a == false -> Module.concat(mod)
           is_atom(mod_a) -> mod_a
           is_atom(mod) -> mod
           true -> raise "unknown alias"

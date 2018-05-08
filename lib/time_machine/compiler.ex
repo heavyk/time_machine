@@ -63,7 +63,7 @@ defmodule TimeMachine.Compiler do
                           :"<<", :">>", :>>>, :+, :-, :*, :/, :%, :|,
                           :^, :&, :in, :instanceof, :"**" ]
 
-  @logical_operator     [ :||, :&& ]
+  @logical_operator     [ :&&, :||, :and, :or ]
 
   @assignment_operator  [ :=, :"+=", :"-=", :"*=", :"/=", :"%=",
                           :"<<=", :">>=", :">>>=",
@@ -93,13 +93,18 @@ defmodule TimeMachine.Compiler do
   def to_ast({:%, [], [aliases_, {:%{}, _, map_}]}) do
     {:__aliases__, [alias: mod_a], mod} = aliases_
     mod = cond do
-      mod_a == false && is_list(mod) -> Module.concat(mod)
-      mod_a != false && is_atom(mod_a) -> mod_a
+      mod_a == false and is_list(mod) -> Module.concat(mod)
+      mod_a != false and is_atom(mod_a) -> mod_a
     end
     struct(mod, map_)
     |> to_ast()
   end
   def to_ast({op, _meta, [lhs, rhs]}) when op in @logical_operator do
+    op = case op do
+      :and -> :&&
+      :or  -> :||
+      _    -> op
+    end
     J.logical_expression(op, to_ast(lhs), to_ast(rhs))
   end
   def to_ast({op, _meta, [lhs, rhs]}) when op in @binary_operator do

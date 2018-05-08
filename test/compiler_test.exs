@@ -72,7 +72,7 @@ defmodule CompilerTest do
       |> Logic.clean_quoted()
       |> Logic.handle_logic()
       |> to_js() == "num==='a string'"
-    assert quote(do: ~o(num) === 1234 && ~o(num2) === 1111)
+    assert quote(do: ~o(num) === 1234 and ~o(num2) === 1111)
       |> Logic.clean_quoted()
       |> Logic.handle_logic()
       |> to_js() == "num===1234&&num2===1111"

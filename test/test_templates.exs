@@ -83,28 +83,28 @@ defmodule TestTemplates do
 
   template :tpl_logic_multi_var do
     fragment do
-      if ~v(num) == 2 && ~v(mun) == 2, do: (div "yay"), else: (div "nope")
-      if ~v(num) == 2 && ~v(mun) == 2, do: (div "yay")
-      div if ~v(num) != 2 && ~v(mun) == 2, do: "yay", else: "nope"
-      div if ~v(num) != 2 && ~v(mun) == 2, do: "yay"
+      if ~v(num) == 2 and ~v(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2 and ~v(mun) == 2, do: (div "yay")
+      div if ~v(num) != 2 and ~v(mun) == 2, do: "yay", else: "nope"
+      div if ~v(num) != 2 and ~v(mun) == 2, do: "yay"
     end
   end
 
   template :tpl_logic_multi_obv_var do
     fragment do
-      if ~v(num) == 2 && ~o(mun) == 2, do: (div "yay"), else: (div "nope")
-      if ~v(num) == 2 && ~o(mun) == 2, do: (div "yay")
-      div if ~v(num) != 2 && ~o(mun) == 2, do: "yay", else: "nope"
-      div if ~v(num) != 2 && ~o(mun) == 2, do: "yay"
+      if ~v(num) == 2 and ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2 and ~o(mun) == 2, do: (div "yay")
+      div if ~v(num) != 2 and ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~v(num) != 2 and ~o(mun) == 2, do: "yay"
     end
   end
 
   template :tpl_logic_multi_obv do
     fragment do
-      if ~o(num) == 2 && ~o(mun) == 2, do: (div "yay"), else: (div "nope")
-      if ~o(num) == 2 && ~o(mun) == 2, do: (div "yay")
-      div if ~o(num) != 2 && ~o(mun) == 2, do: "yay", else: "nope"
-      div if ~o(num) != 2 && ~o(mun) == 2, do: "yay"
+      if ~o(num) == 2 and ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~o(num) == 2 and ~o(mun) == 2, do: (div "yay")
+      div if ~o(num) != 2 and ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~o(num) != 2 and ~o(mun) == 2, do: "yay"
     end
   end
 
@@ -164,28 +164,28 @@ defmodule TestTemplates do
 
   panel :pnl_logic_var do
     fragment do
-      if ~v(num) == 2 && ~v(mun) == 2, do: (div "yay"), else: (div "nope")
-      if ~v(num) == 2 && ~v(mun) == 2, do: (div "yay")
-      div if ~v(num) != 2 && ~v(mun) == 2, do: "yay", else: "nope"
-      div if ~v(num) != 2 && ~v(mun) == 2, do: "yay"
+      if ~v(num) == 2 and ~v(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2 and ~v(mun) == 2, do: (div "yay")
+      div if ~v(num) != 2 and ~v(mun) == 2, do: "yay", else: "nope"
+      div if ~v(num) != 2 and ~v(mun) == 2, do: "yay"
     end
   end
 
   panel :pnl_logic_obv_var do
     fragment do
-      if ~v(num) == 2 && ~o(mun) == 2, do: (div "yay"), else: (div "nope")
-      if ~v(num) == 2 && ~o(mun) == 2, do: (div "yay")
-      div if ~v(num) != 2 && ~o(mun) == 2, do: "yay", else: "nope"
-      div if ~v(num) != 2 && ~o(mun) == 2, do: "yay"
+      if ~v(num) == 2 and ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~v(num) == 2 and ~o(mun) == 2, do: (div "yay")
+      div if ~v(num) != 2 and ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~v(num) != 2 and ~o(mun) == 2, do: "yay"
     end
   end
 
   panel :pnl_logic_obv do
     fragment do
-      if ~o(num) == 2 && ~o(mun) == 2, do: (div "yay"), else: (div "nope")
-      if ~o(num) == 2 && ~o(mun) == 2, do: (div "yay")
-      div if ~o(num) != 2 && ~o(mun) == 2, do: "yay", else: "nope"
-      div if ~o(num) != 2 && ~o(mun) == 2, do: "yay"
+      if ~o(num) == 2 and ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~o(num) == 2 and ~o(mun) == 2, do: (div "yay")
+      div if ~o(num) != 2 and ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~o(num) != 2 and ~o(mun) == 2, do: "yay"
     end
   end
 
