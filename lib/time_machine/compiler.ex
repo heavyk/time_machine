@@ -141,6 +141,22 @@ defmodule TimeMachine.Compiler do
     fun = J.arrow_function_expression([id(name)], [], to_ast(fun))
     J.call_expression(id(:m), [id(name), fun])
   end
+  def to_ast(%Logic.Transform{obv: obv, fun: fun}) do
+    fun = Macro.expand(fun, __ENV__)
+    case is_list(obv) do
+      true ->
+        args = Enum.map(List.wrap(obv), fn obv ->
+          %_type{name: name} = obv
+          id(name)
+        end)
+        fun = J.arrow_function_expression(args, [], to_ast(fun))
+        J.call_expression(id(:c), args ++ [fun])
+      _ ->
+        %_type{name: name} = obv
+        fun = J.arrow_function_expression([id(name)], [], to_ast(fun))
+        J.call_expression(id(:t), [id(name), fun])
+    end
+  end
 
   def to_ast(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
     obvs = Logic.get_ids(test_, [:Obv, :Ref])
@@ -192,6 +208,7 @@ defmodule TimeMachine.Compiler do
     obvs = Logic.get_ids(content, :Obv)
     # ids = Keyword.get(info, :ids, [])
     obv_init = Keyword.get(info, :init, [])
+    # this doesn't look right... this whole thing needs to be tested pretty badly
     obvs = case Keyword.get(info, :pure) do
       # true -> obvs
       _ -> Keyword.merge(obvs, obv_init)
@@ -200,7 +217,17 @@ defmodule TimeMachine.Compiler do
     obv_decl = case length(obvs) do
       0 -> []
       _ -> Enum.map(obvs, fn {k, _type} ->
-        J.variable_declarator(id(k), val(Keyword.get(obv_init, k)))
+        init = Keyword.get(obv_init, k)
+        type = Logic.type_of(init)
+        init = cond do
+          type in [:Transform] -> init
+          type in [:Var] ->
+            %{name: name} = init
+            id(name)
+          type in [:Obv, :Condition] -> val(J.call_expression(id(k), []))
+          true -> val(init)
+        end
+        J.variable_declarator(id(k), init)
       end)
     end
     J.function_declaration(

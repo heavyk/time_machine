@@ -156,9 +156,9 @@ defmodule TimeMachine.Logic do
             {assign, info}
         end
 
-      { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
+      { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_c, :sigil_o, :sigil_v] ->
         type = case sigil do
-          :sigil_O -> :Condition
+          :sigil_c -> :Condition
           :sigil_o -> :Obv
           :sigil_v -> :Var
         end
@@ -437,24 +437,37 @@ defmodule TimeMachine.Logic do
     # |> Macro.update_meta(fn (_meta) -> [] end)
   end
 
-  @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom]"
+  @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom, :another_atom]"
   def get_ids(block, like \\ nil) do
+    set_ids = fn ids, type, name ->
+      cond do
+        (is_atom(like) and type == like) or
+        (is_list(like) and type in like) or
+        (like == nil) -> Keyword.put(ids, String.to_atom(name), type)
+        true -> ids
+      end
+    end
     {_, ids} = Macro.postwalk(block, [], fn
-      { sigil, _meta, [{:<<>>, _, [_name]}, _]}, _ when sigil in [:sigil_O, :sigil_o, :sigil_v] ->
+      { sigil, _meta, [{:<<>>, _, [_name]}, _]}, _ when sigil in [:sigil_O, :sigil_o, :sigil_v, :sigil_c] ->
         raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
             "for whatever reason you are looking for ids on unhandled logic (run Logic.handle_logic/2 first)"
 
-      {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false -> # is this necessary?
-        IO.puts "convert alias: #{alias_}"
+      %mod{name: name} = expr, ids when is_atom(mod) ->
+        type = Module.split(mod) |> List.last() |> String.to_atom()
+        ids = set_ids.(ids, type, name)
+        {expr, ids}
+
+      {:%{}, _, [{:__struct__, mod} | _] = vals} = expr, ids when is_atom(mod) ->
+        type = Module.split(mod) |> List.last() |> String.to_atom()
+        name = Keyword.get(vals, :name)
+        ids = set_ids.(ids, type, name)
+        {expr, ids}
+
+      {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false ->
         {{:__aliases__, [alias: false], mod_list(alias_)}, ids}
 
       {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, ids ->
-        ids = cond do
-          (is_atom(like) && type == like) ||
-          (is_list(like) && type in like) ||
-          (like == nil) -> Keyword.put(ids, String.to_atom(name), type)
-          true -> ids
-        end
+        ids = set_ids.(ids, type, name)
         {expr, ids}
 
       expr, ids ->
@@ -509,17 +522,21 @@ defmodule TimeMachine.Logic do
     raise TemplateCompileError, Keyword.merge(info, meta) |> Keyword.put(:err, err)
   end
 
-  defp type_of(%mod{}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
-  defp type_of({:%{}, _, [{:__struct__, mod} | _]}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
-  defp type_of({:%, _, [{:__aliases__, _, mod}, _]}) when is_list(mod), do: List.last(mod)
-  defp type_of(_), do: false
+  def type_of(%mod{}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
+  def type_of({:%{}, _, [{:__struct__, mod} | _]}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
+  def type_of({:%, _, [{:__aliases__, _, mod}, _]}) when is_list(mod), do: List.last(mod)
+  def type_of(_), do: false
+
+  def as_atom(s) when is_binary(s), do: String.to_atom(s)
+  def as_atom(s) when is_atom(s), do: s
 
   defp is_literal(v) when is_list(v), do: Enum.all?(v, &is_literal/1)
   defp is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v), do: true
   defp is_literal(_), do: false
 end
 
-defmodule TimeMachine.Logic.Do do
+# placemat process
+defmodule TimeMachine.Logic.Quote do
   # TODO: make lot's of generic builder functions like this one and get rid of a lot the quotes
   defp value(name, type \\ :Obv) do
     full_type = logic_module(type)
