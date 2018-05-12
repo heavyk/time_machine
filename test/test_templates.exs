@@ -24,11 +24,11 @@ defmodule TestTemplates do
   end
   def clean(%Element{tag: :_template, content: content_, attrs: attrs_}) do
     # %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
-    %Element{tag: :_template, content: clean(content_), attrs: Keyword.drop(attrs_, [:file, :line]) |> clean()}
+    %Element{tag: :_template, content: clean(content_), attrs: Keyword.drop(attrs_, [:file, :line, :module]) |> clean()}
   end
   def clean(%Element{tag: tag_, content: content_, attrs: attrs_}) do
     # %Element{tag: tag_, content: clean(content_), attrs: clean(attrs_)}
-    %Element{tag: tag_, content: clean(content_), attrs: Keyword.drop(attrs_, [:file, :line]) |> clean()}
+    %Element{tag: tag_, content: clean(content_), attrs: Keyword.drop(attrs_, [:file, :line, :module]) |> clean()}
   end
   def clean(ast) do
     Macro.update_meta(ast, fn (_meta) -> [] end)

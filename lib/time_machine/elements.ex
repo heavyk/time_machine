@@ -8,7 +8,7 @@ defmodule TimeMachine.Elements do
            :html, :head, :meta, :link, :script, :title, :body],
     containers: [:template, :component, :panel]
 
-  @transformers [ &TimeMachine.Logic.handle_logic/3 ]
+  @transformers [ &TimeMachine.Logic.handle_logic/2 ]
 
   # unused macros
   # defmacro left <|> right do
@@ -98,14 +98,15 @@ defmodule TimeMachine.Elements do
   defmacro template(name, do: block) when is_atom(name) do
     caller = __CALLER__
     use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info, caller) end)
+    info = [name: name, module: caller.module]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    # TODO: save the block/info into Registry
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
-        content = unquote(block)
-        template_ unquote(info), do: content
+        block = unquote(block)
+        template_ unquote(info), do: block
       end
     end
   end
@@ -114,14 +115,15 @@ defmodule TimeMachine.Elements do
   defmacro panel(name, do: block) when is_atom(name) do
     caller = __CALLER__
     use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, init: []]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info, caller) end)
+    info = [name: name, module: caller.module, init: []]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    # TODO: save the block/info into Registry
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
-        content = unquote(block)
-        panel_ unquote(info), do: content
+        block = unquote(block)
+        panel_ unquote(info), do: block
       end
     end
   end
@@ -131,8 +133,9 @@ defmodule TimeMachine.Elements do
     caller = __CALLER__
     template = String.to_atom(Atom.to_string(name) <> "__template")
     use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info, caller) end)
+    info = [name: name, module: caller.module]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    # TODO: save the block/info into Registry
     quote do
       defmacro unquote(name)(c1 \\ nil, c2 \\ nil, c3 \\ nil, c4 \\ nil, c5 \\ nil) do
         caller = __CALLER__
@@ -151,11 +154,11 @@ defmodule TimeMachine.Elements do
         end
       end
       @doc false
-      def unquote(template)(var!(assigns)) do
+      def unquote(template)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
-        content = unquote(block)
-        component_ unquote(info), do: content
+        block = unquote(block)
+        component_ unquote(info), do: block
       end
     end
   end
