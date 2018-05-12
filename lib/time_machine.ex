@@ -10,6 +10,7 @@ defmodule TimeMachine do
 
   defmacro __using__(_) do
     quote do
+      use TimeMachine.Templates
       use TimeMachine.Elements
       use Marker,
         compiler: TimeMachine.Compiler,

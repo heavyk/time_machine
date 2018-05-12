@@ -119,8 +119,6 @@ end
 defmodule TimeMachine.Logic do
   alias TimeMachine.Logic
 
-  defstruct tag: nil, content: nil, attrs: []
-
   defmacro __using__(_) do
     quote do
       alias TimeMachine.Logic
@@ -132,7 +130,15 @@ defmodule TimeMachine.Logic do
   # negative emotion means I am holding myself in perfect vibrational harmony with something I do not want
 
   @doc false
-  def handle_logic(block, info) do
+  def handle_logic(block, info, caller) do
+    mod = caller.module
+    # IO.puts "handle logic: #{mod} #{inspect info}"
+    # this isn't working yet. I need to handle_logic *after* the module is compiled (eg. inside of the function instead of the macro)
+    templates = case function_exported?(mod, :templates, 0) do
+      true -> mod.templates()
+      _ -> []
+    end
+    # IO.puts "templates: #{inspect mod} #{inspect templates}"
     info = Keyword.put_new(info, :ids, [])
       |> Keyword.put_new(:pure, true)
     {block, info} = Macro.traverse(block, info, fn
@@ -318,13 +324,13 @@ defmodule TimeMachine.Logic do
         literal = is_literal(value)
         cond do
           op == :<~ and literal ->
-            tpl_err meta, info, {"assigning literal '#{value}' into #{name}", "instead, use '=' for assignment"}
+            template_error caller, meta, info, {"assigning literal '#{value}' into #{name}", "instead, use '=' for assignment"}
           op == := and not literal ->
-            tpl_err meta, info, {"'#{inspect value}' is not literal", "try using <~"}
+            template_error caller, meta, info, {"'#{inspect value}' is not literal", "try using <~"}
           op == :<~ and type != :Obv ->
-            tpl_err meta, info, {"a transformation must be stored into an Obv", "try converting #{name} into an Obv"}
+            template_error caller, meta, info, {"a transformation must be stored into an Obv", "try converting #{name} into an Obv"}
           op == :<~ and type_of(value) != :Transform and type_of(value) != :Obv ->
-            tpl_err meta, info, {"cannot store a #{type_of(value)} as a transformation", "??? #{inspect value}"}
+            template_error caller, meta, info, {"cannot store a #{type_of(value)} as a transformation", "??? #{inspect value}"}
           true -> nil
         end
         mod = logic_module(type)
@@ -344,7 +350,7 @@ defmodule TimeMachine.Logic do
           op == :<~> and type_of(value) == :Obv ->
             quote do: %Logic.Bind2{lhs: %unquote(mod){name: unquote(name)}, rhs: unquote(value)}
           true ->
-            tpl_err meta, info, {"UNKNOWN: dunno what to do with this:\n    ~o(#{name}) #{op} #{Macro.to_string value}", "\n    #{inspect value}"}
+            template_error caller, meta, info, {"UNKNOWN: dunno what to do with this:\n    ~o(#{name}) #{op} #{Macro.to_string value}", "\n    #{inspect value}"}
         end
         name = String.to_atom(name)
         info = cond do
@@ -353,23 +359,29 @@ defmodule TimeMachine.Logic do
             # if init is a list, the container can initialise values
             init = case init_val = Keyword.get(init, name) do
               nil -> Keyword.put(init, name, value)
-              _ -> tpl_err meta, info, {"#{name} is already initialised to #{inspect init_val}.", "you cannot also initialise it to be #{inspect value} in the same template"}
+              _ -> template_error caller, meta, info, {"#{name} is already initialised to #{inspect init_val}.", "you cannot also initialise it to be #{inspect value} in the same template"}
             end
             ids = case t = Keyword.get(ids, name) do
               nil -> Keyword.put(ids, name, type)
               ^type -> ids
-              # _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
-              _ -> tpl_err meta, info, {"#{name} is already a #{t}. it cannot be redefined to be a #{type} in the same template", "TODO: suggestion"}
+              _ -> template_error caller, meta, info, {"#{name} is already a #{t}. it cannot be redefined to be a #{type} in the same template", "TODO: suggestion"}
             end
-            Keyword.put(info, :init, init)
-          true -> tpl_err meta, info, :cannot_define
+            info
+            |> Keyword.put(:init, init)
+            |> Keyword.put(:ids, ids)
+          true -> template_error caller, meta, info, :cannot_define
         end
         # IO.puts "expr: #{inspect expr}\n"
         expr = Macro.escape(expr)
         {expr, info}
 
-      {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->
-        # IO.puts "function? #{fun}"
+      {fun, meta, args} = expr, info when is_atom(fun) and is_list(args) ->
+        # soon the template will be a
+        case fun do
+          :tpl_logic_multi_obv_var ->
+            IO.puts "function? #{fun} #{fun in templates}"
+          _ -> nil
+        end
         # lookup in ets the atom to see if it exists as a template
         {expr, info}
 
@@ -381,7 +393,7 @@ defmodule TimeMachine.Logic do
     {block, info}
   end
   def handle_logic(block) do
-    {block, _info} = handle_logic(block, [])
+    {block, _info} = handle_logic(block, [], __ENV__)
     block
   end
 
@@ -508,8 +520,8 @@ defmodule TimeMachine.Logic do
       |> Macro.expand_once(env)
       |> Code.eval_quoted([], env)
       case eval_result do
-        {eval_value, []} -> eval_value #|> Macro.escape()
-        {_value, vars} -> :error
+        {eval_value, []} -> eval_value
+        {_value, _vars} -> :error
       end
     rescue
       _ -> :error
@@ -518,8 +530,14 @@ defmodule TimeMachine.Logic do
     end
   end
 
-  defp tpl_err(meta, info, err) do
-    raise TemplateCompileError, Keyword.merge(info, meta) |> Keyword.put(:err, err)
+  defp template_error(caller, meta, info, err) do
+    opts =
+      Map.take(caller, [:file, :line])
+      |> Map.to_list()
+      |> Keyword.merge(info)
+      |> Keyword.merge(meta)
+      |> Keyword.put(:err, err)
+    raise TemplateCompileError, opts
   end
 
   def type_of(%mod{}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()
@@ -538,14 +556,14 @@ end
 # placemat process
 defmodule TimeMachine.Logic.Quote do
   # TODO: make lot's of generic builder functions like this one and get rid of a lot the quotes
-  defp value(name, type \\ :Obv) do
+  def value(name, type \\ :Obv) do
     full_type = logic_module(type)
     quote do: %unquote(full_type){name: unquote(name)}
   end
 
-  defp if(test, do_, else_) do
+  def if(test, do_, else_) do
     case is_literal(test) do
-      false -> quote do: %Logic.If{test: unquote(test_), do: unquote(do_), else: unquote(else_)}
+      false -> quote do: %Logic.If{test: unquote(test), do: unquote(do_), else: unquote(else_)}
       true ->
         cond do
           !!test -> quote do: unquote(do_)
@@ -553,4 +571,12 @@ defmodule TimeMachine.Logic.Quote do
         end
     end
   end
+
+  defp logic_module(mod) when is_atom(mod) do
+    Module.concat([:TimeMachine, :Logic, mod])
+  end
+
+  defp is_literal(v) when is_list(v), do: Enum.all?(v, &is_literal/1)
+  defp is_literal(v) when is_binary(v) or is_number(v) or is_atom(v) or is_boolean(v) or is_nil(v), do: true
+  defp is_literal(_), do: false
 end

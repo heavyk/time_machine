@@ -8,7 +8,7 @@ defmodule TimeMachine.Elements do
            :html, :head, :meta, :link, :script, :title, :body],
     containers: [:template, :component, :panel]
 
-  @transformers [ &TimeMachine.Logic.handle_logic/2 ]
+  @transformers [ &TimeMachine.Logic.handle_logic/3 ]
 
   # unused macros
   # defmacro left <|> right do
@@ -98,8 +98,8 @@ defmodule TimeMachine.Elements do
   defmacro template(name, do: block) when is_atom(name) do
     caller = __CALLER__
     use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, file: caller.file, line: caller.line]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    info = [name: name]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info, caller) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
@@ -114,8 +114,8 @@ defmodule TimeMachine.Elements do
   defmacro panel(name, do: block) when is_atom(name) do
     caller = __CALLER__
     use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, file: caller.file, line: caller.line, init: []]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    info = [name: name, init: []]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info, caller) end)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
@@ -131,8 +131,8 @@ defmodule TimeMachine.Elements do
     caller = __CALLER__
     template = String.to_atom(Atom.to_string(name) <> "__template")
     use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, file: caller.file, line: caller.line]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    info = [name: name]
+    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info, caller) end)
     quote do
       defmacro unquote(name)(c1 \\ nil, c2 \\ nil, c3 \\ nil, c4 \\ nil, c5 \\ nil) do
         caller = __CALLER__

@@ -1,8 +1,10 @@
 
+### current idea implementation
+
+the idea is that when you make the templates, you are not actually making transforming the block. that happens a step later. the reason for this is because you will surely want to make references to other templates from within your templates -- yet the names are not yet known of all of the templates at compile time. so, the block is untransformed until it's called, when all transformations are done, and even things can be inlined or modified depending on the variables passed to the function. this also allows for more transformation to be done at runtime, allowing for the interfacing even with external resources.
+
 ### current effort
 
-- `Logic.Assign` -> `Logic.Define` (obvs never get reassigned; they only get transformed)
-- turn cond statements into multiple if-statements (eg. from top to bottom where the else is the next if)
 - `input type: "number", value: ~o(num1)` needs to bind the obv to the value, eg. `el = h('input', ...); num1 = attribute(el)`
   - maybe, another function should be made: `el = bind_value(h('input', ...), obv)` this way the return is the element and the value is saved into the obv
   - or, h('input', {type: 'number', value: obv, ...}) and hyper-hermes automatically sets the value (for ~v(vars))
@@ -62,12 +64,13 @@ function button_adder (G, {cod}) {
 
 ### element interactions
 
-- make `boink` and `press` fuctional
+- make `boink` and `press` functional
 - these should all be equivalent: (the individual advantages each syntax provides are obvious)
   - `button "++", [boink: modify(~o(num), &(&1 + 1))]`
   - `button "++", [boink: modify(~o(num), fn num -> num + 1 end)]`
   - `button "++", [boink: fn ~o(num) -> num + 1 end]`
   - `button "++", [boink: ~o(num) <- num + 1]`
+  - `button "++", boink: ~o(num) <- ~o(num) + 1` - lol
 - event listeners available are:
   - modify(obv, fun) -> an event listener, which calls fun with: (obv value, event), then sets obv equal to the return value
   - boink(obv, modifier = (v) => !v) -> an event listener, which flips the value of obv every event (default for boink)
@@ -76,7 +79,8 @@ function button_adder (G, {cod}) {
 
 ### first steps
 
-- integrate into phoenix a simple html page, then compiles the template into js
+- integrate into phoenix a simple html page, using marker as the html renderer (or, it can also use the eex templates as well)
+  - ensure marker/eex is rendering the html and time_machine is rendering the js templates
 - make a toggle if-else button that switches text render in phoenix (and works)
 
 ### poem???

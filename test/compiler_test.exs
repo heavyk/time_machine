@@ -58,24 +58,30 @@ defmodule CompilerTest do
     assert %Logic.Var{name: "num"}
       |> Logic.clean_quoted()
       |> to_js() == "num"
+
     assert quote(do: %Logic.Var{name: "num"} == 2)
       |> Logic.clean_quoted()
       |> to_js() == "num==2"
+
     assert quote(do: %Logic.Var{name: "num"} === %Logic.Var{name: "num2"})
       |> Logic.clean_quoted()
       |> to_js() == "num===num2"
+
     assert quote(do: ~o(num) === ~o(num2))
       |> Logic.clean_quoted()
       |> Logic.handle_logic()
       |> to_js() == "num===num2"
+
     assert quote(do: ~o(num) === "a string")
       |> Logic.clean_quoted()
       |> Logic.handle_logic()
       |> to_js() == "num==='a string'"
+
     assert quote(do: ~o(num) === 1234 and ~o(num2) === 1111)
       |> Logic.clean_quoted()
       |> Logic.handle_logic()
       |> to_js() == "num===1234&&num2===1111"
+
     assert_raise RuntimeError, fn ->
       quote(do: (if ~v(num) === ~o(num), do: div "yay"))
       |> Logic.clean_quoted()
