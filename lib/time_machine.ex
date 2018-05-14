@@ -8,10 +8,10 @@ defmodule TimeMachine do
   any of the bindings.
   """
 
-  defmacro __using__(_) do
+  defmacro __using__(opts) do
     quote do
       use TimeMachine.Templates
-      use TimeMachine.Elements
+      use TimeMachine.Elements, unquote(opts)
       use Marker,
         compiler: TimeMachine.Compiler,
         elements: TimeMachine.Elements

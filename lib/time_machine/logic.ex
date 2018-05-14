@@ -11,6 +11,13 @@ defmodule TimeMachine.Logic.Ref do
            name: nil
 end
 
+# call to a template
+defmodule TimeMachine.Logic.Call do
+  defstruct tag: :_call,
+           name: nil,
+           args: nil
+end
+
 # environmental observable
 defmodule TimeMachine.Logic.Condition do
   defstruct tag: :_cod,
@@ -132,13 +139,13 @@ defmodule TimeMachine.Logic do
   @doc false
   def handle_logic(block, info) do
     mod = Keyword.get(info, :module)
-    # IO.puts "handle logic: #{mod} #{inspect info}"
-    # this isn't working yet. I need to handle_logic *after* the module is compiled (eg. inside of the function instead of the macro)
-    templates = case function_exported?(mod, :templates, 0) do
-      true -> mod.templates()
-      _ -> []
-    end
-    # IO.puts "templates: #{inspect mod} #{inspect templates}"
+    name = Keyword.get(info, :name)
+    # IO.puts "handle logic: #{mod}.#{name}"
+    # TODO: the `pure` attribute really means that there are no Conditions in the logic.
+    # TODO: depending on the way the scopes are laid out, only pass the obvs necessary.
+    #       for now, I think I should just render them by default as pure, (eg. pass all necessary obvs)
+    #       additionally, to simplify the Condition representation, just pull them all right out of `C`
+    #       eg. lala = v(C['my_condition'])
     info = Keyword.put_new(info, :ids, [])
       |> Keyword.put_new(:pure, true)
     {block, info} = Macro.traverse(block, info, fn
@@ -315,6 +322,7 @@ defmodule TimeMachine.Logic do
         #   - must be found before the last line of a template
         #   - cannot be conditionally assigned (this restriction can potentially be relaxed - as could be otherwise)
         #
+        # for finding out the last expression, it may be helpful to use Module.eval_quoted(info[:module], expr, info)
         init = info[:init]
         ids = info[:ids]
         value = case try_eval(quoted_value) do
@@ -375,13 +383,18 @@ defmodule TimeMachine.Logic do
         expr = Macro.escape(expr)
         {expr, info}
 
-      {fun, meta, args} = expr, info when is_atom(fun) and is_list(args) ->
+      {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->
         # soon the template will be a
-        case fun do
-          :tpl_logic_multi_obv_var ->
-            IO.puts "function? #{fun} #{fun in templates}"
-          _ -> nil
-        end
+        expr =
+          case TimeMachine.Templates.type_of(mod, fun) do
+            :template ->
+              # this isn't correct because I need to render the template into the init calling it with the appropriate args
+              # then, make a js call here with the appropriate obvs passed to it (depending on how pure it is)
+              # TODO: improve the speed of this. seems like it's gonna get hit for every operator
+              # IO.puts "found! call #{fun} #{inspect args}"
+              quote do: %Logic.Call{name: unquote(fun), args: unquote(args)}
+            _ -> expr
+          end
         # lookup in ets the atom to see if it exists as a template
         {expr, info}
 

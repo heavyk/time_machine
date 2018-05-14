@@ -121,19 +121,25 @@ defmodule TimeMachine.Compiler do
     {:safe, content}
   end
   def to_ast(%Logic.Var{name: name}) do
-    # Namespaceman.get(el)
+    # NameSpaceman.get(el)
     id(name)
   end
   def to_ast(%Logic.Obv{name: name}) do
-    # Namespaceman.get(el)
+    # NameSpaceman.get(el)
     id(name)
   end
   def to_ast(%Logic.Condition{name: name}) do
-    # Namespaceman.get(el)
+    # NameSpaceman.get(el)
     id(name)
   end
   def to_ast(%Logic.Ref{name: name}) do
     J.member_expression(id(:G), to_ast(name), true)
+  end
+  def to_ast(%Logic.Call{name: name, args: args}) do
+    # TODO: lookup the template with key: name/args and then determine the obv list which needs to be passed to it
+    # TODO: the mangled function name should be compared to the empty args version. if they're the same, only export the one
+    name = Atom.to_string(name) <> "_" <> Integer.to_string(:erlang.phash2(args))
+    J.call_expression(id(name), [J.object_pattern([id(:TODO)])])
   end
   def to_ast(%Logic.Modify{obv: obv, fun: fun}) do
     %_type{name: name} = obv

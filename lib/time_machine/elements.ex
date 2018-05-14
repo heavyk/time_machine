@@ -111,16 +111,22 @@ defmodule TimeMachine.Elements do
   @doc "Define a new template"
   defmacro template(name, do: block) when is_atom(name) do
     caller = __CALLER__
-    use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, module: caller.module]
+    mod = caller.module
+    use_elements = Module.get_attribute(mod, :marker_use_elements)
+    info = [name: name, module: mod]
     {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    # TODO: save the block/info into Registry
+    TimeMachine.Templates.define(mod, name, :template, info)
+    # Module.put_attribute(mod, :templates, name)
+    IO.puts "added #{name} to #{mod}@templates"
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
-        template_ unquote(info), do: block
+        js_ast = template_ unquote(info), do: block
+        TimeMachine.Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
+        %Logic.Call{name: unquote(name), args: var!(assigns)}
+        js_ast
       end
     end
   end
@@ -128,9 +134,11 @@ defmodule TimeMachine.Elements do
   @doc "panel is like a template, but it defines a new js scope (env)"
   defmacro panel(name, do: block) when is_atom(name) do
     caller = __CALLER__
-    use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, module: caller.module, init: []]
+    mod = caller.module
+    use_elements = Module.get_attribute(mod, :marker_use_elements)
+    info = [name: name, module: mod, init: []]
     {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
+    TimeMachine.Templates.define(mod, name, :panel, info)
     # TODO: save the block/info into Registry
     quote do
       def unquote(name)(var!(assigns) \\ []) do

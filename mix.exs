@@ -14,6 +14,7 @@ defmodule TimeMachine.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {TimeMachine.Application, []},
       extra_applications: [:logger]
     ]
   end
@@ -24,7 +25,6 @@ defmodule TimeMachine.MixProject do
       {:estree, path: "../elixir-estree"},
       {:marker, path: "../marker"},
       {:focus, "~> 0.3", only: :test},
-      # {:mox, "~> 0.3", only: :test},
       {:colors, "~> 1.1"},
       {:mix_test_watch, "~> 0.5", only: :dev, runtime: false}
     ]
