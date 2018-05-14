@@ -9,8 +9,10 @@ defmodule TimeMachine.Templates do
     case :erlang.function_exported(mod, :__info__, 1) do
       true -> nil
       _ ->
-        IO.puts "use TimeMachine.Templates #{mod}"
-        # Module.register_attribute(mod, :templates, accumulate: true)
+        # IO.puts "use TimeMachine.Templates #{mod}"
+        Module.register_attribute(mod, :templates, accumulate: true)
+        Module.register_attribute(mod, :panels, accumulate: true)
+        Module.register_attribute(mod, :components, accumulate: true)
         Module.register_attribute(mod, :css, accumulate: true)
         quote do
           @on_definition TimeMachine.Templates
@@ -19,19 +21,22 @@ defmodule TimeMachine.Templates do
     end
   end
 
-  def __on_definition__(env, _kind, name, args, _guards, _body) do
+  def __on_definition__(_env, _kind, _name, args, _guards, _body) do
     case args do
       [{:\\, _, [{:var!, _, [{:assigns, _, TimeMachine.Elements}]}, []]}] ->
-        Module.put_attribute(env.module, :templates, name)
+        # no longer necessary. it's done in the macro
+        # Module.put_attribute(env.module, :templates, name)
+        nil
       _args_ -> nil
     end
   end
 
-  defmacro __before_compile__(env) do
-    IO.puts "before compile #{env.module}"
-    quote bind_quoted: [mod: env.module], unquote: true do
-      def templates(), do: Module.get_attribute(unquote(env.module), :templates)#@templates
-      def template?(t), do: t in @templates
+  defmacro __before_compile__(_env) do
+    # IO.puts "before compile #{env.module}"
+    quote do
+      def templates(), do: @templates
+      def panels(), do: @panels
+      def components(), do: @components
       def css(), do: @css
     end
   end

@@ -1,4 +1,6 @@
 defmodule TimeMachine.Elements do
+  alias TimeMachine.Templates
+
   use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
@@ -18,9 +20,6 @@ defmodule TimeMachine.Elements do
     tags = opts[:tags] || [:div]
     tags = Macro.expand(tags, caller)
     ambiguous_imports = Marker.Element.find_ambiguous_imports(tags)
-    Module.register_attribute(caller.module, :templates, accumulate: true)
-    Module.register_attribute(caller.module, :panels, accumulate: true)
-    Module.register_attribute(caller.module, :components, accumulate: true)
     quote do
       import Kernel, except: unquote(ambiguous_imports)
       import unquote(__MODULE__)
@@ -36,16 +35,15 @@ defmodule TimeMachine.Elements do
     use_elements = Module.get_attribute(mod, :marker_use_elements)
     info = [name: name, module: mod]
     {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    TimeMachine.Templates.define(mod, name, :template, info)
-    # Module.put_attribute(mod, :templates, name)
-    IO.puts "added #{name} to #{mod}@templates"
+    Templates.define(mod, name, :template, info)
+    Module.put_attribute(mod, :templates, name)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
         js_ast = template_ unquote(info), do: block
-        TimeMachine.Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
+        Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
         %Logic.Call{name: unquote(name), args: var!(assigns)}
         js_ast
       end
@@ -59,14 +57,17 @@ defmodule TimeMachine.Elements do
     use_elements = Module.get_attribute(mod, :marker_use_elements)
     info = [name: name, module: mod, init: []]
     {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    TimeMachine.Templates.define(mod, name, :panel, info)
-    # TODO: save the block/info into Registry
+    Templates.define(mod, name, :panel, info)
+    Module.put_attribute(mod, :panels, name)
     quote do
       def unquote(name)(var!(assigns) \\ []) do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
-        panel_ unquote(info), do: block
+        js_ast = panel_ unquote(info), do: block
+        Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
+        %Logic.Call{name: unquote(name), args: var!(assigns)}
+        js_ast
       end
     end
   end
@@ -74,11 +75,13 @@ defmodule TimeMachine.Elements do
   # @doc "component is a contained ... TODO - work all this out"
   defmacro component(name, do: block) when is_atom(name) do
     caller = __CALLER__
+    mod = caller.module
     template = String.to_atom(Atom.to_string(name) <> "__template")
-    use_elements = Module.get_attribute(caller.module, :marker_use_elements)
-    info = [name: name, module: caller.module]
+    use_elements = Module.get_attribute(mod, :marker_use_elements)
+    info = [name: name, module: mod]
     {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    # TODO: save the block/info into Registry
+    Templates.define(mod, name, :component, info)
+    Module.put_attribute(mod, :components, name)
     quote do
       defmacro unquote(name)(c1 \\ nil, c2 \\ nil, c3 \\ nil, c4 \\ nil, c5 \\ nil) do
         caller = __CALLER__
@@ -101,7 +104,10 @@ defmodule TimeMachine.Elements do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
-        component_ unquote(info), do: block
+        js_ast = component_ unquote(info), do: block
+        Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
+        %Logic.Call{name: unquote(name), args: var!(assigns)}
+        js_ast
       end
     end
   end
