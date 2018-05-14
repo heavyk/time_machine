@@ -2,6 +2,7 @@ defmodule TimeMachine.Elements do
   use TimeMachine.Logic
   use Marker.Element,
     casing: :lisp,
+    using: false,
     tags: [:div, :span, :ul, :li, :a, :p, :b, :i, :br, :img,
            :input, :label, :button, :select, :option,
            :header, :nav, :main, :h1, :h2, :h3, :h4, :hr,
@@ -10,12 +11,25 @@ defmodule TimeMachine.Elements do
 
   @transformers [ &TimeMachine.Logic.handle_logic/2 ]
 
+  # by default, Marker will essentially make the same using function, but without the register_attribute calls.
+  # this is to allow my custom definitions of containers to be able to rely on that module attribute
+  defmacro __using__(opts) do
+    caller = __CALLER__
+    tags = opts[:tags] || [:div]
+    tags = Macro.expand(tags, caller)
+    ambiguous_imports = Marker.Element.find_ambiguous_imports(tags)
+    Module.register_attribute(caller.module, :templates, accumulate: true)
+    Module.register_attribute(caller.module, :panels, accumulate: true)
+    Module.register_attribute(caller.module, :components, accumulate: true)
+    quote do
+      import Kernel, except: unquote(ambiguous_imports)
+      import unquote(__MODULE__)
+    end
+  end
+
   # unused macros
   # defmacro left <|> right do
   #   IO.puts "yay! #{inspect left} #{inspect right}"
-  # end
-  # defmacro __using__(opts) do
-  #   IO.puts "TimeMachine.Elements! #{inspect opts}"
   # end
 
   @doc "one-way bindings: set lhs whenever the rhs changes"
@@ -162,4 +176,7 @@ defmodule TimeMachine.Elements do
       end
     end
   end
+
+  # ambiente
+  # poem / plugin
 end
