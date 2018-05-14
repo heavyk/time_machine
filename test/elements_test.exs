@@ -75,137 +75,137 @@ defmodule ElementsTest do
   test "static logic" do
     assert tpl_logic_static([num: 1]) |> clean()
      ==
-    %E{content:
-      %E{content: [
-        %E{content: "nope", tag: :div},
-        nil,
-        %E{content: "yay", tag: :div},
-        %E{content: "yay", tag: :div}
-      ], tag: :_fragment
-    }, tag: :_template, attrs: [pure: true, ids: [], name: :tpl_logic_static]}
-    |> clean()
+      %E{content:
+        %E{content: [
+          %E{content: "nope", tag: :div},
+          nil,
+          %E{content: "yay", tag: :div},
+          %E{content: "yay", tag: :div}
+        ], tag: :_fragment
+      }, tag: :_template, attrs: [pure: true, ids: [], name: :tpl_logic_static]}
+      |> clean()
 
     assert tpl_logic_static([num: 2]) |> clean()
      ==
-    %E{content:
-      %E{content: [
-        %E{content: "yay", tag: :div},
-        %E{content: "yay", tag: :div},
-        %E{content: "nope", tag: :div},
-        %E{content: nil, tag: :div}
-      ], tag: :_fragment
-    }, tag: :_template, attrs: [pure: true, ids: [], name: :tpl_logic_static]}
-    |> clean()
+      %E{content:
+        %E{content: [
+          %E{content: "yay", tag: :div},
+          %E{content: "yay", tag: :div},
+          %E{content: "nope", tag: :div},
+          %E{content: nil, tag: :div}
+        ], tag: :_fragment
+      }, tag: :_template, attrs: [pure: true, ids: [], name: :tpl_logic_static]}
+      |> clean()
   end
 
   test "obv/var logic" do
     assert tpl_logic_obv() |> clean()
      ==
-    %E{content:
-      %E{content: [
-        %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
-                              do: %E{content: "yay", tag: :div},
-                            else: %E{content: "nope", tag: :div}},
-        %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
-                              do: %E{content: "yay", tag: :div},
-                            else: nil},
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} != 2),
-                              do: "yay",
-                            else: "nope"},
-         tag: :div},
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} != 2),
-                              do: "yay",
-                            else: nil},
-         tag: :div}
-      ], tag: :_fragment
-    }, tag: :_template, attrs: [ids: [num: :Obv], pure: true, name: :tpl_logic_obv]}
-    |> clean()
+      %E{content:
+        %E{content: [
+          %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
+                                do: %E{content: "yay", tag: :div},
+                              else: %E{content: "nope", tag: :div}},
+          %Logic.If{test: quote(do: %Logic.Obv{name: "num"} == 2),
+                                do: %E{content: "yay", tag: :div},
+                              else: nil},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} != 2),
+                                do: "yay",
+                              else: "nope"},
+           tag: :div},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Obv{name: "num"} != 2),
+                                do: "yay",
+                              else: nil},
+           tag: :div}
+        ], tag: :_fragment
+      }, tag: :_template, attrs: [ids: [num: :Obv], pure: true, name: :tpl_logic_obv]}
+      |> clean()
 
     assert tpl_logic_var() |> clean()
      ==
-    %E{content:
-      %E{content: [
-        %Logic.If{test: quote(do: %Logic.Var{name: "num"} == 2),
-                             do: %E{content: "yay", tag: :div},
-                           else: %E{content: "nope", tag: :div}},
-        %Logic.If{test: quote(do: %Logic.Var{name: "num"} == 2),
-                             do: %E{content: "yay", tag: :div},
-                           else: nil},
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Var{name: "num"} != 2),
-                              do: "yay",
-                            else: "nope"},
-             tag: :div},
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Var{name: "num"} != 2),
-                              do: "yay",
-                            else: nil},
-             tag: :div}
-      ], tag: :_fragment
-    }, tag: :_template, attrs: [ids: [num: :Var], pure: false, name: :tpl_logic_var]}
-    |> clean()
+      %E{content:
+        %E{content: [
+          %Logic.If{test: quote(do: %Logic.Var{name: "num"} == 2),
+                                do: %E{content: "yay", tag: :div},
+                              else: %E{content: "nope", tag: :div}},
+          %Logic.If{test: quote(do: %Logic.Var{name: "num"} == 2),
+                                do: %E{content: "yay", tag: :div},
+                              else: nil},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Var{name: "num"} != 2),
+                                do: "yay",
+                              else: "nope"},
+               tag: :div},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Var{name: "num"} != 2),
+                                do: "yay",
+                              else: nil},
+               tag: :div}
+        ], tag: :_fragment
+      }, tag: :_template, attrs: [ids: [num: :Var], pure: false, name: :tpl_logic_var]}
+      |> clean()
 
     assert tpl_logic_mixed([num: 2]) |> clean()
      ==
-    %E{content:
-      %E{content: [
-        %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} == 2),
-                    do: %E{content: "yay", tag: :div},
-                  else: %E{content: "nope", tag: :div}},
-        %Logic.If{test: quote(do: %Logic.Var{name: "vv"} == 2),
-                    do: %E{content: "yay", tag: :div},
-                  else: %E{content: "nope", tag: :div}},
-        %E{content: "yay", tag: :div},
+      %E{content:
+        %E{content: [
+          %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} == 2),
+                      do: %E{content: "yay", tag: :div},
+                    else: %E{content: "nope", tag: :div}},
+          %Logic.If{test: quote(do: %Logic.Var{name: "vv"} == 2),
+                      do: %E{content: "yay", tag: :div},
+                    else: %E{content: "nope", tag: :div}},
+          %E{content: "yay", tag: :div},
 
-        %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} == 2),
-                    do: %E{content: "yay", tag: :div},
-                  else: nil},
-        %Logic.If{test: quote(do: %Logic.Var{name: "vv"} == 2),
-                    do: %E{content: "yay", tag: :div},
-                  else: nil},
-        %E{content: "yay", tag: :div},
+          %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} == 2),
+                      do: %E{content: "yay", tag: :div},
+                    else: nil},
+          %Logic.If{test: quote(do: %Logic.Var{name: "vv"} == 2),
+                      do: %E{content: "yay", tag: :div},
+                    else: nil},
+          %E{content: "yay", tag: :div},
 
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} != 2),
-                              do: "yay",
-                            else: "nope"},
-         tag: :div},
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Var{name: "vv"} != 2),
-                              do: "yay",
-                            else: "nope"},
-         tag: :div},
-        %E{content: "nope", tag: :div},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} != 2),
+                                do: "yay",
+                              else: "nope"},
+           tag: :div},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Var{name: "vv"} != 2),
+                                do: "yay",
+                              else: "nope"},
+           tag: :div},
+          %E{content: "nope", tag: :div},
 
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} != 2),
-                              do: "yay",
-                            else: nil},
-         tag: :div},
-        %E{attrs: [],
-         content: %Logic.If{test: quote(do: %Logic.Var{name: "vv"} != 2),
-                              do: "yay",
-                            else: nil},
-         tag: :div},
-        %E{content: nil, tag: :div}
-      ], tag: :_fragment
-    }, tag: :_template, attrs: [ids: [vv: :Var, oo: :Obv], pure: false, name: :tpl_logic_mixed]}
-    |> clean()
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Obv{name: "oo"} != 2),
+                                do: "yay",
+                              else: nil},
+           tag: :div},
+          %E{attrs: [],
+           content: %Logic.If{test: quote(do: %Logic.Var{name: "vv"} != 2),
+                                do: "yay",
+                              else: nil},
+           tag: :div},
+          %E{content: nil, tag: :div}
+        ], tag: :_fragment
+      }, tag: :_template, attrs: [ids: [vv: :Var, oo: :Obv], pure: false, name: :tpl_logic_mixed]}
+      |> clean()
 
     assert pnl_obv_assign() |> clean()
      ==
-    %E{content:
-      %E{content: [
-        "num is", %Logic.Obv{name: "num"}
-      ], tag: :div
-    }, tag: :_panel,
-      attrs: [ids: [num: :Obv],
-      init: [num: 4],
-      pure: true,
-      name: :pnl_obv_assign]}
-    |> clean()
+      %E{content:
+        %E{content: [
+          "num is", %Logic.Obv{name: "num"}
+        ], tag: :div
+      }, tag: :_panel,
+        attrs: [ids: [num: :Obv],
+        init: [num: 4],
+        pure: true,
+        name: :pnl_obv_assign]}
+      |> clean()
   end
 
   test "cond statements make nested if-statements" do
