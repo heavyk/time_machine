@@ -201,11 +201,26 @@ defmodule ElementsTest do
           "num is", %Logic.Obv{name: "num"}
         ], tag: :div
       }, tag: :_panel,
-        attrs: [ids: [num: :Obv],
-        init: [num: 4],
-        pure: true,
-        name: :pnl_obv_assign]}
-      |> clean()
+        attrs: [
+          ids: [num: :Obv],
+          init: [num: 4],
+          pure: true,
+          name: :pnl_obv_assign
+        ]
+      } |> clean()
+
+    assert pnl_inner_tpl() |> clean()
+     ==
+      %E{content:
+        %E{content: %Logic.Call{name: :tpl_logic_obv, args: [:num]}, tag: :div
+      }, tag: :_panel,
+        attrs: [
+          ids: [num: :Obv],
+          init: [num: 4],
+          pure: true,
+          name: :pnl_inner_tpl
+        ]
+      } |> clean()
   end
 
   test "cond statements make nested if-statements" do

@@ -138,16 +138,20 @@ defmodule TimeMachine.Logic do
 
   @doc false
   def handle_logic(block, info) do
+    # unused syntax possibilities: <|>, ???
+
     mod = Keyword.get(info, :module)
-    name = Keyword.get(info, :name)
-    # IO.puts "handle logic: #{mod}.#{name}"
+    _name = Keyword.get(info, :name)
+    info = Keyword.put_new(info, :ids, [])
+      |> Keyword.put_new(:pure, true)
+
     # TODO: the `pure` attribute really means that there are no Conditions in the logic.
     # TODO: depending on the way the scopes are laid out, only pass the obvs necessary.
     #       for now, I think I should just render them by default as pure, (eg. pass all necessary obvs)
     #       additionally, to simplify the Condition representation, just pull them all right out of `C`
     #       eg. lala = v(C['my_condition'])
-    info = Keyword.put_new(info, :ids, [])
-      |> Keyword.put_new(:pure, true)
+
+    # IO.puts "handle logic: #{mod}.#{name}"
     {block, info} = Macro.traverse(block, info, fn
       # PREWALK (going in)
       { :@, meta, [{ name, _, atom }]} = expr, info when is_atom(name) and is_atom(atom) ->
