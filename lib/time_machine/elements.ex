@@ -44,7 +44,6 @@ defmodule TimeMachine.Elements do
         block = unquote(block)
         js_ast = template_ unquote(info), do: block
         Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
-        %Logic.Call{name: unquote(name), args: var!(assigns)}
         js_ast
       end
     end
@@ -66,7 +65,6 @@ defmodule TimeMachine.Elements do
         block = unquote(block)
         js_ast = panel_ unquote(info), do: block
         Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
-        %Logic.Call{name: unquote(name), args: var!(assigns)}
         js_ast
       end
     end
@@ -106,7 +104,6 @@ defmodule TimeMachine.Elements do
         block = unquote(block)
         js_ast = component_ unquote(info), do: block
         Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
-        %Logic.Call{name: unquote(name), args: var!(assigns)}
         js_ast
       end
     end

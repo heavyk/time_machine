@@ -1,6 +1,7 @@
 defmodule TimeMachine.Compiler do
   alias Marker.Element
   alias TimeMachine.Logic
+  alias TimeMachine.Templates
   alias ESTree.Tools.Builder, as: J
   alias ESTree.Tools.Generator
 
@@ -135,11 +136,13 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Logic.Ref{name: name}) do
     J.member_expression(id(:G), to_ast(name), true)
   end
-  def to_ast(%Logic.Call{name: name, args: args}) do
-    # TODO: lookup the template with key: name/args and then determine the obv list which needs to be passed to it
-    # TODO: the mangled function name should be compared to the empty args version. if they're the same, only export the one
-    name = Atom.to_string(name) <> "_" <> Integer.to_string(:erlang.phash2(args))
-    J.call_expression(id(name), [J.object_pattern([id(:TODO)])])
+  def to_ast(%Logic.Call{mod: mod, id: name}) do
+    args = Templates.get_args(mod, name)
+    args = case length(args) do
+      0 -> []
+      _ -> [J.object_pattern(to_ast(args))]
+    end
+    J.call_expression(id(name), args)
   end
   def to_ast(%Logic.Modify{obv: obv, fun: fun}) do
     %_type{name: name} = obv
@@ -165,7 +168,7 @@ defmodule TimeMachine.Compiler do
   end
 
   def to_ast(%Logic.If{tag: :_if, test: test_, do: do_, else: else_}) do
-    obvs = Logic.get_ids(test_, [:Obv, :Ref])
+    obvs = Logic.enum_logic(test_, [:Obv, :Ref])
     stmt = J.conditional_statement(to_ast(test_), to_ast(else_), to_ast(do_))
     case length(obvs) do
       0 -> stmt
@@ -203,7 +206,7 @@ defmodule TimeMachine.Compiler do
   end
   def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
     lib = [:h,:t,:c,:v] # TODO: for now, we define all of them, but in the future, only defnine the ones that are required
-    cods = Logic.get_ids(content, [:Condition, :Var]) # TODO: also need to do this for each inner impure_tpl as well.
+    cods = Logic.enum_logic(content, [:Condition, :Var]) # TODO: also need to do this for each inner impure_tpl as well.
     lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
     cod_decl = case length(cods) do
       0 -> []
@@ -211,7 +214,7 @@ defmodule TimeMachine.Compiler do
     end
     impure_tpls = [] # TODO: define all non-pure inner templates inside of the panel here...
     # TODO: need a way to find inner template references (and subquently their cod/var)
-    obvs = Logic.get_ids(content, :Obv)
+    obvs = Logic.enum_logic(content, :Obv, :name, :count)
     # ids = Keyword.get(info, :ids, [])
     obv_init = Keyword.get(info, :init, [])
     # this doesn't look right... this whole thing needs to be tested pretty badly

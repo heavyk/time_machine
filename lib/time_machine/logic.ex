@@ -11,11 +11,11 @@ defmodule TimeMachine.Logic.Ref do
            name: nil
 end
 
-# call to a template
+# call to a template (name), with (assigns \\ [])
 defmodule TimeMachine.Logic.Call do
   defstruct tag: :_call,
-           name: nil,
-           args: nil
+            mod: nil,
+             id: nil
 end
 
 # environmental observable
@@ -200,7 +200,7 @@ defmodule TimeMachine.Logic do
     end, fn
       # POSTWALK (coming back out)
       { op, _meta, fun } = expr, info when op in [:+, :-, :*, :/] -> # for %, a guard needs to skip structs
-        ids = get_ids(expr, [:Obv, :Condition])
+        ids = enum_logic(expr, [:Obv, :Condition])
         len = length(ids)
         obv = Enum.map(ids, fn {name, type} ->
           type = logic_module(type)
@@ -222,10 +222,18 @@ defmodule TimeMachine.Logic do
         end
         {expr, info}
 
-      { :cond, _meta, [[do: clauses]]} = expr, info ->
-        ids = get_ids(clauses)
+      { :cond, meta, [[do: clauses]]} = expr, info ->
+        # TODO: this is incorrect if the tests are statically compared, and don't contain any logic (eg. no ~o(...) in the condition)
+        #       so, after reducing, if none of the conditions are dynamic, expr should be returned, so the cond statement is evaluated server-side
+        #       (bonus points: if only some of the tests are dynamic, split the cond statement into two and evaluate the server-side expression first)
+        ids = Enum.reduce(clauses, [], fn
+          {:->, _, [cases, _do]}, ids ->
+            enum_logic(cases) |> Keyword.merge(ids)
+
+          _expr, ids -> ids
+        end)
         case length(ids) do
-          0 -> {expr, info} # statements without obvs are not transformed and evaluated normally
+          0 -> {expr, info} # statements without obvs are not transformed and evaluated normally (sorta, see above)
           _ ->
             starter = quote do: %Logic.If{test: nil, do: nil, else: nil}
             clauses = :lists.reverse(clauses)
@@ -235,7 +243,7 @@ defmodule TimeMachine.Logic do
                   {op, _meta, _} = t when op in [:==, :!=, :===, :!==, :<, :<=, :>, :>=] -> t
                   b when is_boolean(b) -> b
                   {:when, _, _} -> raise "guard clauses are not yet supported"
-                  c -> raise "unknown condition: #{inspect c}"
+                  c -> template_error meta, info, {"unknown condition: #{inspect c}", "..."}
                 end |> Macro.escape()
 
                 # TODO: do a check to be sure the "true" statement does exist, and that it is in fact the last statement
@@ -286,7 +294,7 @@ defmodule TimeMachine.Logic do
         raise "case statements are not (yet) transformed to js. use a cond statement for now"
 
       { :if, _meta, [lhs, rhs]} = expr, info ->
-        ids = Logic.get_ids(expr)
+        ids = enum_logic(lhs)
         cond do
           length(ids) > 0 ->
             do_ = Keyword.get(rhs, :do)
@@ -387,20 +395,26 @@ defmodule TimeMachine.Logic do
         expr = Macro.escape(expr)
         {expr, info}
 
-      {fun, _meta, args} = expr, info when is_atom(fun) and is_list(args) ->
-        # soon the template will be a
-        expr =
-          case TimeMachine.Templates.type_of(mod, fun) do
-            :template ->
-              # this isn't correct because I need to render the template into the init calling it with the appropriate args
-              # then, make a js call here with the appropriate obvs passed to it (depending on how pure it is)
-              # TODO: improve the speed of this. seems like it's gonna get hit for every operator
-              # IO.puts "found! call #{fun} #{inspect args}"
-              quote do: %Logic.Call{name: unquote(fun), args: unquote(args)}
-            _ -> expr
-          end
-        # lookup in ets the atom to see if it exists as a template
-        {expr, info}
+      # this cannot work because handle_logic is performed in the template macro when the template is defined.
+      # so, that means there is no list of templates to be found anywhere.
+      # that means that depending on the context when I call the function, (eg. from within a template)
+      # I should return the bytecode or a Call{}
+      # ....
+      {fun, _meta, assigns} = expr, info when is_atom(fun) and is_list(assigns) ->
+        # TODO: improve the speed of this. seems like it's gonna get hit for every operator
+        case TimeMachine.Templates.type_of(mod, fun) do
+          :template ->
+            # then, make a js call here with the appropriate obvs passed to it (depending on how pure it is)
+            # then, when templates are only called once, they can be inlined as well.
+            id = call_id(fun, assigns)
+            calls = Keyword.get(info, :calls, [])
+              |> Keyword.merge([{id, 1}], fn _k, v1, v2 -> v1 + v2 end)
+            info = Keyword.put(info, :calls, calls)
+            expr = quote do: %Logic.Call{mod: unquote(mod), id: unquote(id)}
+            {expr, info}
+
+          _ -> {expr, info}
+        end
 
       expr, info ->
         # IO.puts "postwalk expr: #{inspect expr}"
@@ -466,43 +480,73 @@ defmodule TimeMachine.Logic do
     # |> Macro.update_meta(fn (_meta) -> [] end)
   end
 
-  @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom, :another_atom]"
-  def get_ids(block, like \\ nil) do
-    set_ids = fn ids, type, name ->
+  @doc """
+  traverse ast looking for TimeMachine.Logic.* like :atom or [:atom, :another_atom].
+  if name is defined, it'll count the number of occurances Logic with that name are found.
+  """
+  def enum_logic(block, like \\ nil, field \\ :name, value \\ :type)
+  def enum_logic(%mod{} = expr, like, field, value) when is_atom(mod) do
+    enum_logic({:%{}, [], Map.to_list(expr)}, like, field, value)
+  end
+  def enum_logic(block, like, field, value) do
+    set_ids = fn ids, type, val_ ->
       cond do
         (is_atom(like) and type == like) or
         (is_list(like) and type in like) or
-        (like == nil) -> Keyword.put(ids, String.to_atom(name), type)
+        (like == nil) ->
+          key = as_atom(val_)
+          val = case value do
+            :type -> type
+            :count -> Keyword.get(ids, key, 0) + 1
+            value -> value == val_ or Keyword.get(ids, key)
+          end
+          IO.puts "putting: #{key} -> #{inspect val}"
+          Keyword.put(ids, key, val)
         true -> ids
       end
     end
-    {_, ids} = Macro.postwalk(block, [], fn
-      { sigil, _meta, [{:<<>>, _, [_name]}, _]}, _ when sigil in [:sigil_O, :sigil_o, :sigil_v, :sigil_c] ->
-        raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
-            "for whatever reason you are looking for ids on unhandled logic (run Logic.handle_logic/2 first)"
 
-      %mod{name: name} = expr, ids when is_atom(mod) ->
+    {_, ids} = Macro.traverse(block, [], fn
+      %mod{} = expr, ids when is_atom(mod) ->
         type = Module.split(mod) |> List.last() |> String.to_atom()
-        ids = set_ids.(ids, type, name)
+        val = Map.get(expr, field)
+        expr = {:%{}, [], Map.to_list(expr)}
         {expr, ids}
 
+    expr, ids ->
+      {expr, ids}
+
+    end, fn
       {:%{}, _, [{:__struct__, mod} | _] = vals} = expr, ids when is_atom(mod) ->
         type = Module.split(mod) |> List.last() |> String.to_atom()
-        name = Keyword.get(vals, :name)
-        ids = set_ids.(ids, type, name)
+        val = Keyword.get(vals, field)
+        ids = set_ids.(ids, type, val)
         {expr, ids}
 
       {:__aliases__, [alias: alias_], _mod}, ids when is_atom(alias_) and alias_ != false ->
         {{:__aliases__, [alias: false], mod_list(alias_)}, ids}
 
-      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, [name: name]}]} = expr, ids ->
-        ids = set_ids.(ids, type, name)
+      {:%, _, [{:__aliases__, _, [:TimeMachine, :Logic, type]}, {:%{}, _, vals}]} = expr, ids ->
+        val = Keyword.get(vals, field)
+        ids = set_ids.(ids, type, val)
         {expr, ids}
+
+      { sigil, _, _}, _ when sigil in [:sigil_O, :sigil_o, :sigil_v, :sigil_c] ->
+        raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
+            "for whatever reason you are looking for ids on unhandled logic (run Logic.handle_logic/2 first)"
 
       expr, ids ->
         {expr, ids}
     end)
     ids
+  end
+
+  def call_id(name, assigns) when is_atom(name) do
+    Atom.to_string(name) |> call_id(assigns)
+  end
+  def call_id(name, assigns) when is_binary(name) do
+    # TODO: kw order shouldn't make a difference, so maybe convert to map??
+    String.to_atom(name <> "_" <> Integer.to_string(:erlang.phash2(Enum.into(assigns, %{}))))
   end
 
   defp mod_list(alias_) do
