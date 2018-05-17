@@ -13,6 +13,11 @@ defmodule CompilerTest do
     |> ESTree.Tools.Generator.generate(false)
   end
 
+  defp call_tpl(name, args) when is_atom(name) do
+    %{id: Logic.call_id(name, args),
+      js: apply(TestTemplates, name, args) |> to_js()}
+  end
+
   test "elements generate proper js" do
     assert (div "one") |> to_js() ==
         "h('div','one')"
@@ -116,9 +121,11 @@ defmodule CompilerTest do
     assert pnl_obv_assign() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4);return h('div','num is',num);}"
 
     # this one doesn't work yet, because I need to save the templates by name and also assigns. then, inline the template into the env, and call the template
-    # it may be helpful to start with elements_test and generate Logic.Call{name: :tpl_logic_obv, params: [{:num}]} structs.
-    tpl_logic_obv_js = tpl_logic_obv() |> to_js()
-    assert pnl_inner_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),tpl_logic_obv=#{tpl_logic_obv_js};return h('div',tpl_logic_obv({num}));}"
+    # by default, it will consider all templates to be pure.
+    # later, an optimisation pass will be able to remove passing of variables purely if purity isn't needed (thereby generating smaller code)
+
+    tpl_logic_obv = call_tpl(:tpl_logic_obv, [])
+    assert pnl_inner_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
   end
 
   test "templates cannot have assigns" do
@@ -135,6 +142,10 @@ defmodule CompilerTest do
   end
 
   test "case statement is not yet supported" do
+    # this limitation can easily be relaxed. given:
+    #  case x do y -> ... end
+    # that can be transformed pretty easily into:
+    #  cond do x == y -> ... end
     assert_raise RuntimeError, fn ->
       quote do
         template :no_case_statement do

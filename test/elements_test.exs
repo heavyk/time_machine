@@ -212,9 +212,10 @@ defmodule ElementsTest do
     assert pnl_inner_tpl() |> clean()
      ==
       %E{content:
-        %E{content: %Logic.Call{name: :tpl_logic_obv, args: [:num]}, tag: :div
+        %E{content: %Logic.Call{mod: TestTemplates, id: :tpl_logic_obv_39679005}, tag: :div
       }, tag: :_panel,
         attrs: [
+          calls: [tpl_logic_obv_39679005: 1],
           ids: [num: :Obv],
           init: [num: 4],
           pure: true,
@@ -270,6 +271,12 @@ defmodule ElementsTest do
           Keyword.update!(v_els.attrs, :name, fn _ -> :tpl_logic_cond end)
         )
       # |> clean() == Focus.set(attrs_ ~> name_, v_els, :tpl_logic_if)
+  end
+
+  test "Logic.enum_logic()" do
+    # TODO more of this testing
+    assert Logic.enum_logic(tpl_logic_obv_sometimes([sometimes: true]), :Obv, :name, :count) == [num: 2]
+    assert Logic.enum_logic(tpl_logic_obv_sometimes([sometimes: false]), :Obv, :name, :count) == [num: 2]
   end
 end
 

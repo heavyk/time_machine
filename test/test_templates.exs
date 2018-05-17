@@ -63,6 +63,15 @@ defmodule TestTemplates do
     end
   end
 
+  template :tpl_logic_obv_sometimes do
+    fragment do
+      if @sometimes, do: (div ~o(num)), else: (div "nope")
+      if @sometimes, do: (div ~o(num))
+      div if not @sometimes, do: ~o(num), else: "nope"
+      div if not @sometimes, do: ~o(num)
+    end
+  end
+
   template :tpl_logic_obv do
     fragment do
       if ~o(num) == 2, do: (div "yay"), else: (div "nope")
