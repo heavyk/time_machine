@@ -9,6 +9,8 @@ defmodule TimeMachine do
   """
 
   defmacro __using__(opts) do
+    # if the application isn't started, ets will not be ready and will spit out the most helpful "argument error" lol
+    {:ok, _} = Application.ensure_all_started(:time_machine)
     quote do
       use TimeMachine.Templates
       use TimeMachine.Elements, unquote(opts)
