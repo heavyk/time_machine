@@ -182,11 +182,13 @@ defmodule TimeMachine.Logic do
           :sigil_o -> :Obv
           :sigil_v -> :Var
         end
+        # TODO: save the name as an atom to begin with??
         expr =
           {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
         name = String.to_atom(name)
         cond do
-          name in @lib -> logic_error meta, info, {"for now, the names #{inspect @lib} are reserved.", "use a different name :)"}
+          name in [:G,:C] -> logic_error meta, info, "`G` and `C` are reserved globals and cannot be used"
+          name in @lib -> logic_error meta, info, "for now, the names #{inspect @lib} are reserved and cannot be used."
           true -> nil
         end
         ids = info[:ids]

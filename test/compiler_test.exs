@@ -161,6 +161,23 @@ defmodule CompilerTest do
     end
   end
 
+  test "reserved names will produce errors" do
+    # this one will go away when NameSpaceman is implemented.
+    assert_raise LogicError, fn ->
+      quote do
+        template :reserved_name do
+          div ~o(c)
+          div ~o(t)
+          div ~o(v)
+          div ~o(G)
+          div ~o(C)
+        end
+      end
+      |> Logic.clean_quoted()
+      |> Logic.handle_logic()
+    end
+  end
+
   test "cond statement cannot have guard clauses" do
     assert_raise LogicError, fn ->
       quote do

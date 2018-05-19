@@ -45,6 +45,7 @@ defmodule LogicError do
     {message, suggestion} =
       cond do
         is_tuple(err) -> err
+        is_binary(err) -> {err, ""}
         true -> Keyword.get(@errors, err, :unspcified)
       end
     msg = case file do
