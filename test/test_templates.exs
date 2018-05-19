@@ -189,6 +189,29 @@ defmodule TestTemplates do
     end
   end
 
+  panel :pnl_logic_cdn do
+    fragment do
+      if ~c(num) == 2 and ~c(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~c(num) == 2 and ~c(mun) == 2, do: (div "yay")
+      div if ~c(num) != 2 and ~c(mun) == 2, do: "yay", else: "nope"
+      div if ~c(num) != 2 and ~c(mun) == 2, do: "yay"
+    end
+  end
+
+  panel :pnl_logic_obv_cdn do
+    fragment do
+      if ~c(num) == 2 and ~o(mun) == 2, do: (div "yay"), else: (div "nope")
+      if ~c(num) == 2 and ~o(mun) == 2, do: (div "yay")
+      div if ~c(num) != 2 and ~o(mun) == 2, do: "yay", else: "nope"
+      div if ~c(num) != 2 and ~o(mun) == 2, do: "yay"
+    end
+  end
+
+  # this is kinda a thing, because both ~o(num) and ~o(mun) are used in the panel, but neither of them are defined
+  # so, that means that this is an impure panel and both of the values of those come from the containing environment
+  # and therefore need to be cleaned...
+  # by default h() should clean up that obv listener when its cleanup function is called..
+  # TODO: just ensure h's cleanup is in fact called
   panel :pnl_logic_obv do
     fragment do
       if ~o(num) == 2 and ~o(mun) == 2, do: (div "yay"), else: (div "nope")

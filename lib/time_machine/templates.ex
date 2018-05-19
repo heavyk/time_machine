@@ -1,4 +1,5 @@
 defmodule TimeMachine.Templates do
+  alias TimeMachine.Logic
   use GenServer
 
   @info_tab :tm_tpl_info
@@ -24,15 +25,13 @@ defmodule TimeMachine.Templates do
   def __on_definition__(_env, _kind, _name, args, _guards, _body) do
     case args do
       [{:\\, _, [{:var!, _, [{:assigns, _, TimeMachine.Elements}]}, []]}] ->
-        # no longer necessary. it's done in the macro
-        # Module.put_attribute(env.module, :templates, name)
+        # this is pretty unused right now.
         nil
       _args_ -> nil
     end
   end
 
   defmacro __before_compile__(_env) do
-    # IO.puts "before compile #{env.module}"
     quote do
       def templates(), do: @templates
       def panels(), do: @panels
@@ -53,9 +52,18 @@ defmodule TimeMachine.Templates do
     :ets.insert(@info_tab, {{mod, name, :info}, info})
   end
 
-  def insert(mod, name, assigns, js_ast) do
-    # Process.send(self(), {:insert, {mod, name, assigns, js_ast}}, [])
-    :ets.insert(@ast_tab, {{mod, name, assigns}, js_ast})
+  def insert(mod, name, assigns, ast) do
+    id = Logic.call_id(name, assigns)
+    :ets.insert(@ast_tab, {{mod, name, assigns, :id}, id})
+    :ets.insert(@ast_tab, {{mod, id, :ast}, ast})
+    # TODO: need to do deduplication of ids...
+    #       assigns which don't produce different asts should have different ids, but resolve to the same ast
+    # TODO: I should probably pass everything to the template (including the vars), then in the optimisation phase get rid of the unnecessary ones
+    args = Logic.enum_logic(ast, [:Obv, :Condition], :name, :type)
+    calls = Logic.enum_logic(ast, :Call, :id, :count)
+    # TODO: I think these should be saved together as a metadata (I believe they are always used at the same time)
+    :ets.insert(@info_tab, {{mod, id, :args}, args})
+    :ets.insert(@info_tab, {{mod, id, :calls}, calls})
   end
 
   def all_of(mod, type) do
@@ -64,18 +72,44 @@ defmodule TimeMachine.Templates do
   end
 
   def type_of(mod, name) do
-    case :ets.lookup(@info_tab, {mod, name, :type}) do
-      [{_, type}] -> type
-      _ -> nil
+    case mod do
+      nil -> nil
+      _ ->
+        case :ets.lookup(@info_tab, {mod, name, :type}) do
+          [{_, type}] -> type
+          _ -> nil
+        end
     end
   end
 
-  def get_info(mod, name) do
-    case :ets.lookup(@info_tab, {mod, name, :info}) do
+  def get_info(mod, id) do
+    case :ets.lookup(@info_tab, {mod, id, :info}) do
       [{_, info}] -> info
       _ -> nil
     end
   end
+
+  def get_args(mod, id) do
+    case :ets.lookup(@info_tab, {mod, id, :args}) do
+      [{_, args}] -> args
+      _ -> nil
+    end
+  end
+
+  def get_calls(mod, id) do
+    case :ets.lookup(@info_tab, {mod, id, :calls}) do
+      [{_, calls}] -> calls
+      _ -> nil
+    end
+  end
+
+  def get_ast(mod, id) do
+    case :ets.lookup(@ast_tab, {mod, id, :ast}) do
+      [{_, ast}] -> ast
+      _ -> nil
+    end
+  end
+
 
   # server
 
@@ -88,8 +122,8 @@ defmodule TimeMachine.Templates do
     :ets.insert(@info_tab, {{mod, name, :info}, info})
     {:noreply, state}
   end
-  def handle_info({:insert, {mod, name, assigns, js_ast}}, state) do
-    :ets.insert(@ast_tab, {{mod, name, assigns}, js_ast})
+  def handle_info({:insert, {mod, name, assigns, ast}}, state) do
+    :ets.insert(@ast_tab, {{mod, name, assigns}, ast})
     {:noreply, state}
   end
 

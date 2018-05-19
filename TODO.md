@@ -28,10 +28,10 @@ the idea is that when you make the templates, you are not actually making transf
 // this is incorrect, actually. there is confusion over whether num is an obv or a condition
 // the template has it as an obv, but the return statement (and the fact that the templates are defined in the function)
 // makes them conditions (global obvs).
-function button_adder (G, {cod}) {
+function button_adder (G, {cdn}) {
   const {h, m, v} = G
   let num = v(11)
-  let tpl_cod = () => h('div', 'condition is:', cod)
+  let tpl_cdn = () => h('div', 'condition is:', cdn)
   let tpl_obv = ({num}) => h('div', 'num is:', num)
   let tpl_boink = ({num}) => h('div',
     h('button', {boink: m(num, (num) => num + 1)}, 'num++'),
@@ -65,12 +65,12 @@ function button_adder (G, {cod}) {
 ### element interactions
 
 - make `boink` and `press` functional
-- these should all be equivalent: (the individual advantages each syntax provides are obvious)
-  - `button "++", [boink: modify(~o(num), &(&1 + 1))]`
-  - `button "++", [boink: modify(~o(num), fn num -> num + 1 end)]`
-  - `button "++", [boink: fn ~o(num) -> num + 1 end]`
-  - `button "++", [boink: ~o(num) <- num + 1]`
-  - `button "++", boink: ~o(num) <- ~o(num) + 1` - lol
+- these should all be equivalent? (the individual advantages each syntax provides should be obvious)
+  - `button "++", boink: modify(~o(num), &(&1 + 1))` - nooo, not really diggin it
+  - `button "++", boink: modify(~o(num), fn num -> num + 1 end)` - nooo, not really diggin it
+  - `button "++", boink: fn ~o(num) -> num + 1 end` - nooo, not really diggin it
+  - `button "++", boink: ~o(num) <- num + 1` - nooo, not really diggin it
+  - `button "++", boink: ~o(num) <- ~o(num) + 1` - lol, this one seems the most intuitive..
 - event listeners available are:
   - modify(obv, fun) -> an event listener, which calls fun with: (obv value, event), then sets obv equal to the return value
   - boink(obv, modifier = (v) => !v) -> an event listener, which flips the value of obv every event (default for boink)
@@ -85,6 +85,10 @@ function button_adder (G, {cod}) {
 
 ### poem???
 
+- probably a module is an environment. since each module has a `use TimeMachine` at the top, that macro will define that module's `__using__` function, which will then be used by a "UniVerse" module which will tie all those modules together.
+- when defining an element, a module will `defmodule :my_element do use TimeMachine.Element ... end`
+  - optimisers will optimise each module's namespaces as a unit, and then the whole thing as again as a unit.
+  - so, that means that NameSpaceman's keys will stack: {panel, module, universe} - where each one is rewritten in context of the whole.
 - I have often thought about this idea of a `poem` as the framework for building things...
 - as I continue, I am beginning to see that it may make more sense to separate things into environments
   - the totality of the "thing" is the "universe" where all pure templates are stored and conditions are defined
@@ -96,6 +100,7 @@ function button_adder (G, {cod}) {
 
 ### optimiser
 
+- optimisation happens per module and is referenced as such. (this is its environment)
 - make a gen_server which stores information about the ast (like variable name and scope)
 - and can do things like rename variables and stuff
 

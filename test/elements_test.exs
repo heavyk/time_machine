@@ -277,6 +277,12 @@ defmodule ElementsTest do
     # TODO more of this testing
     assert Logic.enum_logic(tpl_logic_obv_sometimes([sometimes: true]), :Obv, :name, :count) == [num: 2]
     assert Logic.enum_logic(tpl_logic_obv_sometimes([sometimes: false]), :Obv, :name, :count) == [num: 2]
+    assert Logic.enum_logic(tpl_logic_obv(), :Obv, :name, :count) == [num: 4]
+    assert Logic.enum_logic(tpl_logic_var(), :Obv, :name, :count) == []
+    assert Logic.enum_logic(tpl_logic_var(), :Var, :name, :count) == [num: 4]
+    assert Logic.enum_logic(tpl_logic_mixed(), :Var, :name, :count) == [vv: 4]
+    assert Logic.enum_logic(tpl_logic_mixed(), :Obv, :name, :count) == [oo: 4]
+    assert Logic.enum_logic(tpl_logic_mixed(), [:Obv, :Var], :name, :count) == [vv: 4, oo: 4]
   end
 end
 

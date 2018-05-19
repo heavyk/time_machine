@@ -42,9 +42,9 @@ defmodule TimeMachine.Elements do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
-        js_ast = template_ unquote(info), do: block
-        Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
-        js_ast
+        ast = template_ unquote(info), do: block
+        Templates.insert(unquote(mod), unquote(name), var!(assigns), ast)
+        ast
       end
     end
   end
@@ -63,9 +63,9 @@ defmodule TimeMachine.Elements do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
-        js_ast = panel_ unquote(info), do: block
-        Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
-        js_ast
+        ast = panel_ unquote(info), do: block
+        Templates.insert(unquote(mod), unquote(name), var!(assigns), ast)
+        ast
       end
     end
   end
@@ -102,9 +102,9 @@ defmodule TimeMachine.Elements do
         unquote(use_elements)
         _ = var!(assigns)
         block = unquote(block)
-        js_ast = component_ unquote(info), do: block
-        Templates.insert(unquote(mod), unquote(name), var!(assigns), js_ast)
-        js_ast
+        ast = component_ unquote(info), do: block
+        Templates.insert(unquote(mod), unquote(name), var!(assigns), ast)
+        ast
       end
     end
   end

@@ -85,8 +85,10 @@ defmodule TimeMachine.Compiler do
   # convert to ast
 
   def to_ast(content) when is_list(content) do
-    Enum.map(content, &to_ast/1)
-    |> J.array_expression()
+    Enum.map(content, &to_ast/1) |> J.array_expression()
+  end
+  def to_ast(value) when is_atom(value) and value != nil and value != false do
+    J.identifier(value)
   end
   def to_ast(value) when is_literal(value) do
     J.literal(value)
@@ -140,7 +142,7 @@ defmodule TimeMachine.Compiler do
     args = Templates.get_args(mod, name)
     args = case length(args) do
       0 -> []
-      _ -> [J.object_pattern(to_ast(args))]
+      _ -> [J.object_pattern(Enum.map(args, fn {k, v} -> id(k) end))]
     end
     J.call_expression(id(name), args)
   end
@@ -205,27 +207,23 @@ defmodule TimeMachine.Compiler do
     J.arrow_function_expression([], [], to_ast(content))
   end
   def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
-    lib = [:h,:t,:c,:v] # TODO: for now, we define all of them, but in the future, only defnine the ones that are required
-    cods = Logic.enum_logic(content, [:Condition, :Var]) # TODO: also need to do this for each inner impure_tpl as well.
-    lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
-    cod_decl = case length(cods) do
-      0 -> []
-      _ -> [J.variable_declarator(J.object_pattern(id(cods)), id(:C))]
-    end
-    impure_tpls = [] # TODO: define all non-pure inner templates inside of the panel here...
-    # TODO: need a way to find inner template references (and subquently their cod/var)
+    lib = [:h,:t,:c,:v] # OPTIMISE: for now, we define all of them, but in the future, only defnine the ones that are required
+    vars = Logic.enum_logic(content, [:Condition, :Var], :name, :type)
+    cdns = Logic.enum_logic(content, :Condition, :name, :count) # OPTIMISE: if count = 1, the v(varname) can be inlined on the spot (save the declaration)
     obvs = Logic.enum_logic(content, :Obv, :name, :count)
-    # ids = Keyword.get(info, :ids, [])
-    obv_init = Keyword.get(info, :init, [])
-    # this doesn't look right... this whole thing needs to be tested pretty badly
-    obvs = case Keyword.get(info, :pure) do
-      # true -> obvs
-      _ -> Keyword.merge(obvs, obv_init)
-    end
-    # IO.puts "obvs: #{inspect obvs}"
-    obv_decl = case length(obvs) do
+    lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
+    var_decl = case length(vars) do
       0 -> []
-      _ -> Enum.map(obvs, fn {k, _type} ->
+      _ -> [J.variable_declarator(J.object_pattern(id(vars)), id(:C))]
+    end
+    cdn_decl = case length(cdns) do
+      0 -> []
+      _ -> Enum.map(cdns, fn {k, _v} -> J.variable_declarator(id(k), val(k)) end)
+    end
+    obv_init = Keyword.get(info, :init, [])
+    obv_decl = case length(obv_init) do
+      0 -> []
+      _ -> Enum.map(obv_init, fn {k, _type} ->
         init = Keyword.get(obv_init, k)
         type = Logic.type_of(init)
         init = cond do
@@ -239,22 +237,20 @@ defmodule TimeMachine.Compiler do
         J.variable_declarator(id(k), init)
       end)
     end
-    J.function_declaration(
-      id(info[:name]),
-      [J.object_pattern([id(:G),id(:C)])],
-      [],
-      J.block_statement([
-        J.variable_declaration(lib_decl ++ cod_decl ++ obv_decl ++ impure_tpls, :const),
-        J.return_statement(to_ast(content))
-      ]),
-      false, # is_generator - someday, we should make async panels :)
-      false
-    )
+    # TODO: OPTIMISE: all templates with calls = 1 can be inlined
+    mod = Keyword.get(info, :module)
+    tpl_decl = Keyword.get(info, :calls, [])
+    |> Enum.map(fn {k, v} ->
+      ast = Templates.get_ast(mod, k) |> to_ast()
+      # TODO: this is technically incorrect because it should be storing in ets our generated ast, not the estree one
+      # in order to do this, I need to make another pass which
+      J.variable_declarator(id(k), ast)
+    end)
     J.arrow_function_expression(
       [J.object_pattern([id(:G),id(:C)])],
       [],
       J.block_statement([
-        J.variable_declaration(lib_decl ++ cod_decl ++ obv_decl ++ impure_tpls, :const),
+        J.variable_declaration(lib_decl ++ var_decl ++ cdn_decl ++ obv_decl ++ tpl_decl, :const),
         J.return_statement(to_ast(content))
       ])
     )

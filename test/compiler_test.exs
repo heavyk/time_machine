@@ -113,9 +113,10 @@ defmodule CompilerTest do
 
 
     # normal logic renders properly (they will assume that the obvs, `num` and `mun` already exist inside of its environment)
-    assert pnl_logic_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_cdn() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C,mun=v(mun),num=v(num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
     assert pnl_logic_obv() |> to_js() == "({G,C})=>{const {h,t,c,v}=G;return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
-    assert pnl_logic_obv_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G;return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_obv_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{num}=C;return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
 
     # these test that defining an obv in the panel will defines its presence in that scope
     assert pnl_obv_assign() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4);return h('div','num is',num);}"

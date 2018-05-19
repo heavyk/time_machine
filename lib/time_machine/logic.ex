@@ -20,7 +20,7 @@ end
 
 # environmental observable
 defmodule TimeMachine.Logic.Condition do
-  defstruct tag: :_cod,
+  defstruct tag: :_cdn,
            name: nil
 end
 
@@ -455,35 +455,7 @@ defmodule TimeMachine.Logic do
     |> Macro.update_meta(fn (_meta) -> [] end)
   end
 
-  @doc "resolve aliases & remove any meta"
-  @deprecated "not used right now..."
-  def resolve_quoted(ast) do
-    # we cannot really use Macro.expand, because that will expand the if-statements into case statements.
-    # so, instead, we do our own alias resolution
-    Macro.postwalk(ast, fn
-      {:%, [], [{:__aliases__, [alias: mod_a], mod}, {:%{}, _, map_}]} ->
-        cond do
-          mod_a == false -> Module.concat(mod)
-          is_list(mod) and mod_a == false -> Module.concat(mod)
-          is_atom(mod_a) -> mod_a
-          is_atom(mod) -> mod
-          true -> raise "unknown alias"
-        end
-        |> struct(map_)
-
-      {:__aliases__, [alias: alias_], _mod} when is_atom(alias_) and alias_ != false ->
-        {:__aliases__, [alias: false], mod_list(alias_)}
-
-      # expr -> expr
-      expr -> Macro.update_meta(expr, fn (_meta) -> [] end)
-    end)
-    # |> Macro.update_meta(fn (_meta) -> [] end)
-  end
-
-  @doc """
-  traverse ast looking for TimeMachine.Logic.* like :atom or [:atom, :another_atom].
-  if name is defined, it'll count the number of occurances Logic with that name are found.
-  """
+  @doc "traverse ast looking for TimeMachine.Logic.* like :atom or [:atom]"
   def enum_logic(block, like \\ nil, field \\ :name, value \\ :type)
   def enum_logic(%mod{} = expr, like, field, value) when is_atom(mod) do
     enum_logic({:%{}, [], Map.to_list(expr)}, like, field, value)
@@ -500,7 +472,6 @@ defmodule TimeMachine.Logic do
             :count -> Keyword.get(ids, key, 0) + 1
             value -> value == val_ or Keyword.get(ids, key)
           end
-          IO.puts "putting: #{key} -> #{inspect val}"
           Keyword.put(ids, key, val)
         true -> ids
       end
