@@ -207,7 +207,7 @@ defmodule TimeMachine.Compiler do
     J.arrow_function_expression([], [], to_ast(content))
   end
   def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
-    lib = [:h,:t,:c,:v] # OPTIMISE: for now, we define all of them, but in the future, only defnine the ones that are required
+    lib = Logic.lib_fns() # OPTIMISE: for now, we define all of them, but in the future, only defnine the ones that are required
     vars = Logic.enum_logic(content, [:Condition, :Var], :name, :type)
     cdns = Logic.enum_logic(content, :Condition, :name, :count) # OPTIMISE: if count = 1, the v(varname) can be inlined on the spot (save the declaration)
     obvs = Logic.enum_logic(content, :Obv, :name, :count)

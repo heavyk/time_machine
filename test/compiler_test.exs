@@ -87,7 +87,7 @@ defmodule CompilerTest do
       |> Logic.handle_logic()
       |> to_js() == "num===1234&&num2===1111"
 
-    assert_raise RuntimeError, fn ->
+    assert_raise LogicError, fn ->
       quote(do: (if ~v(num) === ~o(num), do: div "yay"))
       |> Logic.clean_quoted()
       |> Logic.handle_logic()
@@ -130,7 +130,7 @@ defmodule CompilerTest do
   end
 
   test "templates cannot have assigns" do
-    assert_raise TemplateCompileError, fn ->
+    assert_raise LogicError, fn ->
       quote do
         template :no_tpl_assigns do
           ~o(yum) = 11
@@ -147,7 +147,7 @@ defmodule CompilerTest do
     #  case x do y -> ... end
     # that can be transformed pretty easily into:
     #  cond do x == y -> ... end
-    assert_raise RuntimeError, fn ->
+    assert_raise LogicError, fn ->
       quote do
         template :no_case_statement do
           case ~o(yum) do
@@ -162,7 +162,7 @@ defmodule CompilerTest do
   end
 
   test "cond statement cannot have guard clauses" do
-    assert_raise RuntimeError, fn ->
+    assert_raise LogicError, fn ->
       quote do
         template :no_guard_clauses do
           cond do

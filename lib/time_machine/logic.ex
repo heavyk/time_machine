@@ -132,6 +132,9 @@ defmodule TimeMachine.Logic do
     end
   end
 
+  @lib [:h,:t,:c,:v]
+  def lib_fns(), do: @lib
+
   # negative emotion speaks to my misunderstanding what is rally going on
   # negative emotion also means that I have summoned more than I am allowing right now
   # negative emotion means I am holding myself in perfect vibrational harmony with something I do not want
@@ -173,7 +176,7 @@ defmodule TimeMachine.Logic do
             {assign, info}
         end
 
-      { sigil, _meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_c, :sigil_o, :sigil_v] ->
+      { sigil, meta, [{:<<>>, _, [name]}, _]}, info when sigil in [:sigil_c, :sigil_o, :sigil_v] ->
         type = case sigil do
           :sigil_c -> :Condition
           :sigil_o -> :Obv
@@ -182,11 +185,15 @@ defmodule TimeMachine.Logic do
         expr =
           {:%, [], [{:__aliases__, [alias: false], [:TimeMachine, :Logic, type]}, {:%{}, [], [name: name]}]}
         name = String.to_atom(name)
+        cond do
+          name in @lib -> logic_error meta, info, {"for now, the names #{inspect @lib} are reserved.", "use a different name :)"}
+          true -> nil
+        end
         ids = info[:ids]
         ids = case t = Keyword.get(ids, name) do
           nil -> Keyword.put(ids, name, type)
           ^type -> ids
-          _ -> raise RuntimeError, "#{name} is a #{t}. it cannot be redefined to be a #{type} in the same template"
+          _ -> logic_error meta, info, {"`#{name}` is already a `#{t}`.", "it cannot be redefined to be a `#{type}` in the same template"}
         end
         info = info
           |> Keyword.put(:ids, ids)
@@ -242,8 +249,8 @@ defmodule TimeMachine.Logic do
                 test__ = case cases |> hd() do
                   {op, _meta, _} = t when op in [:==, :!=, :===, :!==, :<, :<=, :>, :>=] -> t
                   b when is_boolean(b) -> b
-                  {:when, _, _} -> raise "guard clauses are not yet supported"
-                  c -> template_error meta, info, {"unknown condition: #{inspect c}", "..."}
+                  {:when, _, _} -> logic_error meta, info, {"guard clauses are not yet supported", "you're probably doing something wrong ;)"}
+                  c -> logic_error meta, info, {"unknown condition: #{inspect c}", "..."}
                 end |> Macro.escape()
 
                 # TODO: do a check to be sure the "true" statement does exist, and that it is in fact the last statement
@@ -290,8 +297,8 @@ defmodule TimeMachine.Logic do
         # IMO, the cond statement seems quite a bit more straight forward. is it slower or something?
         # there's no way the Kernel.in() guard clause is any faster.
 
-      { :case, _meta, _ } = _expr, _info ->
-        raise "case statements are not (yet) transformed to js. use a cond statement for now"
+      { :case, meta, _ } = _expr, info ->
+        logic_error meta, info, {"case statements are not (yet) transformed to js.", "use a cond statement for now"}
 
       { :if, _meta, [lhs, rhs]} = expr, info ->
         ids = enum_logic(lhs)
@@ -344,13 +351,13 @@ defmodule TimeMachine.Logic do
         literal = is_literal(value)
         cond do
           op == :<~ and literal ->
-            template_error meta, info, {"assigning literal '#{value}' into #{name}", "instead, use '=' for assignment"}
+            logic_error meta, info, {"assigning literal '#{value}' into #{name}", "instead, use '=' for assignment"}
           op == := and not literal ->
-            template_error meta, info, {"'#{inspect value}' is not literal", "try using <~"}
+            logic_error meta, info, {"'#{inspect value}' is not literal", "try using <~"}
           op == :<~ and type != :Obv ->
-            template_error meta, info, {"a transformation must be stored into an Obv", "try converting #{name} into an Obv"}
+            logic_error meta, info, {"a transformation must be stored into an Obv", "try converting #{name} into an Obv"}
           op == :<~ and type_of(value) != :Transform and type_of(value) != :Obv ->
-            template_error meta, info, {"cannot store a #{type_of(value)} as a transformation", "??? #{inspect value}"}
+            logic_error meta, info, {"cannot store a #{type_of(value)} as a transformation", "??? #{inspect value}"}
           true -> nil
         end
         mod = logic_module(type)
@@ -370,7 +377,7 @@ defmodule TimeMachine.Logic do
           op == :<~> and type_of(value) == :Obv ->
             quote do: %Logic.Bind2{lhs: %unquote(mod){name: unquote(name)}, rhs: unquote(value)}
           true ->
-            template_error meta, info, {"UNKNOWN: dunno what to do with this:\n    ~o(#{name}) #{op} #{Macro.to_string value}", "\n    #{inspect value}"}
+            logic_error meta, info, {"UNKNOWN: dunno what to do with this:\n    ~o(#{name}) #{op} #{Macro.to_string value}", "\n    #{inspect value}"}
         end
         name = String.to_atom(name)
         info = cond do
@@ -379,17 +386,17 @@ defmodule TimeMachine.Logic do
             # if init is a list, the container can initialise values
             init = case init_val = Keyword.get(init, name) do
               nil -> Keyword.put(init, name, value)
-              _ -> template_error meta, info, {"#{name} is already initialised to #{inspect init_val}.", "you cannot also initialise it to be #{inspect value} in the same template"}
+              _ -> logic_error meta, info, {"#{name} is already initialised to #{inspect init_val}.", "you cannot also initialise it to be #{inspect value} in the same template"}
             end
             ids = case t = Keyword.get(ids, name) do
               nil -> Keyword.put(ids, name, type)
               ^type -> ids
-              _ -> template_error meta, info, {"#{name} is already a #{t}. it cannot be redefined to be a #{type} in the same template", "TODO: suggestion"}
+              _ -> logic_error meta, info, {"#{name} is already a #{t}. it cannot be redefined to be a #{type} in the same template", "TODO: suggestion"}
             end
             info
             |> Keyword.put(:init, init)
             |> Keyword.put(:ids, ids)
-          true -> template_error meta, info, :cannot_define
+          true -> logic_error meta, info, :cannot_define
         end
         # IO.puts "expr: #{inspect expr}\n"
         expr = Macro.escape(expr)
@@ -479,13 +486,11 @@ defmodule TimeMachine.Logic do
 
     {_, ids} = Macro.traverse(block, [], fn
       %mod{} = expr, ids when is_atom(mod) ->
-        type = Module.split(mod) |> List.last() |> String.to_atom()
-        val = Map.get(expr, field)
         expr = {:%{}, [], Map.to_list(expr)}
         {expr, ids}
 
-    expr, ids ->
-      {expr, ids}
+      expr, ids ->
+        {expr, ids}
 
     end, fn
       {:%{}, _, [{:__struct__, mod} | _] = vals} = expr, ids when is_atom(mod) ->
@@ -503,8 +508,7 @@ defmodule TimeMachine.Logic do
         {expr, ids}
 
       { sigil, _, _}, _ when sigil in [:sigil_O, :sigil_o, :sigil_v, :sigil_c] ->
-        raise RuntimeError, "(internal badness): horray! you have found a bug! please report this\n" <>
-            "for whatever reason you are looking for ids on unhandled logic (run Logic.handle_logic/2 first)"
+        internal_badness "for whatever reason you are looking for ids on unhandled logic (run Logic.handle_logic/2 first)"
 
       expr, ids ->
         {expr, ids}
@@ -562,17 +566,11 @@ defmodule TimeMachine.Logic do
     end
   end
 
-  # defp template_error(caller, meta, info, err) do
-  #   opts =
-  #     Map.take(caller, [:file, :line])
-  #     |> Map.to_list()
-  #     |> Keyword.merge(info)
-  #     |> Keyword.merge(meta)
-  #     |> Keyword.put(:err, err)
-  #   raise TemplateCompileError, opts
-  # end
-  defp template_error(meta, info, err) do
-    raise TemplateCompileError, Keyword.merge(info, meta) |> Keyword.put(:err, err)
+  defp logic_error(meta, info, err) do
+    raise LogicError, Keyword.merge(info, meta) |> Keyword.put(:err, err)
+  end
+  defp internal_badness(meta \\ [], err) do
+    raise InternalBadnessError, Keyword.put(meta, :err, err)
   end
 
   def type_of(%mod{}) when is_atom(mod), do: Module.split(mod) |> List.last() |> String.to_atom()

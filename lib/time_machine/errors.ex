@@ -1,10 +1,17 @@
-# defmodule TimeMachine.InternalBadnessError do
-#   defexception []
-#   def exception() do
-#
-#   end
-# end
+defmodule InternalBadnessError do
+  defexception [:message, :line]
+  def exception(meta) do
+    err = Keyword.get(meta, :err, "")
+    line = Keyword.get(meta, :line)
+    msg = """
+    (internal badness): horray! you have found a bug! please report this
+    on line #{line}: #{err}
+    """
+    %__MODULE__{message: msg, line: line}
+  end
+end
 
+# ??? wtf?
 # defmodule TimeMachine.IncompatibleAwesomenessError do
 #   defexception []
 #   def exception() do
@@ -12,7 +19,7 @@
 #   end
 # end
 
-defmodule TemplateCompileError do
+defmodule LogicError do
   defexception [:message, :file, :line]
   @errors [
     unspcified: {"unable to compile template", "..."},
@@ -51,7 +58,7 @@ defmodule TemplateCompileError do
         ---
         """
     end
-    %TemplateCompileError{file: file, line: line, message: msg}
+    %__MODULE__{file: file, line: line, message: msg}
   end
 end
 
