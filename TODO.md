@@ -1,21 +1,25 @@
 
 ### current idea implementation
 
-the idea is that when you make the templates, you are not actually making transforming the block. that happens a step later. the reason for this is because you will surely want to make references to other templates from within your templates -- yet the names are not yet known of all of the templates at compile time. so, the block is untransformed until it's called, when all transformations are done, and even things can be inlined or modified depending on the variables passed to the function. this also allows for more transformation to be done at runtime, allowing for the interfacing even with external resources.
+the idea is that when you make the templates, you are not actually making transforming the block. that happens a step later. the reason for this is because you will surely want to make references to other templates from within your templates -- yet the names are not yet known of all of the templates at compile time. so, the block is untransformed until it's called, when all transformations are done, and even things can be inlined or modified depending on the variables passed to the function. this also allows for more transformation to be done at runtime, allowing for the interfacing even with external resources. therefore, there should be 4 (optionally 5) phases:
+
+- pre-transform / transformed
+- pre-call (generate js ast based on assigns passed)
+- post-call (ast output depending on the assigns passed to it)
+- assembled (this is an unoptimised build of the entire project with all templates with 100% purity and no inlining done)
+- optimised (removal of purity in functions and inlining of single-use templates)
 
 ### current effort
+
+- remake the architect:
+  - elixir port to tell node to do stuff: https://github.com/nmuth/elixir_port_benchmarks/blob/master/lib/port_handler.ex
+  - elixir file_system for file modifications
+  - node.js read stdin waiting for commands to do things
 
 - `input type: "number", value: ~o(num1)` needs to bind the obv to the value, eg. `el = h('input', ...); num1 = attribute(el)`
   - maybe, another function should be made: `el = bind_value(h('input', ...), obv)` this way the return is the element and the value is saved into the obv
   - or, h('input', {type: 'number', value: obv, ...}) and hyper-hermes automatically sets the value (for ~v(vars))
   - or, h('input', {type: 'number', observe: {value: obv}, ...}) (for ~o(obvs))
-- get_ids does not take `Logic.Boink` into account. test to be sure this is working
-  - same for `Logic.Bind1`
-  - same for `Logic.Bind2`
-  - same for `Logic.Transform`
-  - same for `Logic.??`
-  - eg. when I refer to the obv, `num` it should be defined in the inner transform / compute
-    - this is kinda hairy though... I need a better way of referring to the obv being modified by the boink function
 - write tests for `Boink` / `Press`
 - write tests for `Bind1` / `Bind2`
 - write tests for `boink: ~o(obv)` translates directly into a `Boink` without a function
@@ -23,41 +27,21 @@ the idea is that when you make the templates, you are not actually making transf
     - `h('div', {observe: {boink: obv, press: obv, value: obv, select: obv, input: obv, hover: obv, focus: obv}})`
 - explore the idea that a "scope" is really a "panel" -- a unit components which can be thrown away as a whole.
   - a panel defines all of the functions necessary to make to construct the scope: h,s,t,c,v.. etc.
-```js
-// this is a relatively simplistic example of its basic mechanics: adding to or subtracting 1 from a number.
-// this is incorrect, actually. there is confusion over whether num is an obv or a condition
-// the template has it as an obv, but the return statement (and the fact that the templates are defined in the function)
-// makes them conditions (global obvs).
-function button_adder (G, {cdn}) {
-  const {h, m, v} = G
-  let num = v(11)
-  let tpl_cdn = () => h('div', 'condition is:', cdn)
-  let tpl_obv = ({num}) => h('div', 'num is:', num)
-  let tpl_boink = ({num}) => h('div',
-    h('button', {boink: m(num, (num) => num + 1)}, 'num++'),
-    h('button', {boink: m(num, (num) => num - 1)}, 'num--')
-  )
-  // ...
-  return () => h('div',
-    h('h1', 'button adder!'),
-    tpl_obv({num}),
-    tpl_boink({num})
-  )
-}
-```
 - make a "plugin" which creates all of the necessary bindings to the js lib. (min: h/s/t/c)
 - render a simple hello world in phoenix that invokes the binding.
 - make a js lib which is just an interface, where it can be hot swapped as necessary.
   - ability to load more than one lib. they are cached so the idea is to make them monstrous and containing more than enough (since it's reused by everyone, it makes no difference). this allows the "apps" to be as little as possible
 - add recursion:
   - `for v <- arr do` repeats a thing for each item in a @list/~o(array)
+  - `each`, `stream`, ...
 - add idea of streams as event emitters: (implemented in js as ObservableArray event emitter)
   - events: unshift, push, pop, shift, splice, sort, replace, insert, reverse, move, swap, remove, set, empty
   - integrate this somehow with phoenix:
     - gen_server and a pubsub - where subbed events are the data...
     - presence implementation??
 - make possible the ability to add custom tags: eg. `MyModule opt1: true, opt2: "lala" do ... end`
-  - those call `MyModule.__marker__(opt1: true, opt2: "lala")` - which then returns some `%Marker.Element{tag: :div, content: ...}`
+  - MyModule should `use TimeMachine.Element, [...]` at the top
+  - those call `MyModule.__element__(opt1: true, opt2: "lala")` - which then returns some `%Marker.Element{tag: :div, content: ...}`
     - should integrate easily with the concept of `Marker.add_arg(el, arg, env)` and customised things can be done later with the element  attrs / content.
   - it could be kind of cool if `use TimeMachine.Logic` was all that was needed to make it awesome. (what is "awesome"? pfft. hell if I know, yet)
 - `NameSpaceman` is a gen_server for holding scopes
