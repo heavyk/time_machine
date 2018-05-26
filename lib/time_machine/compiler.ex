@@ -138,13 +138,17 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Logic.Ref{name: name}) do
     J.member_expression(id(:G), to_ast(name), true)
   end
-  def to_ast(%Logic.Call{mod: mod, id: name}) do
-    args = Templates.get_args(mod, name)
+  def to_ast(%Logic.Call{mod: mod, id: id_, name: name, assigns: assigns}) do
+    case function_exported?(mod, name, length(assigns)) do
+      true -> apply(mod, name, assigns)
+      _ -> nil
+    end
+    args = Templates.get_args(mod, id_)
     args = case length(args) do
       0 -> []
-      _ -> [J.object_pattern(Enum.map(args, fn {k, v} -> id(k) end))]
+      _ -> [J.object_pattern(Enum.map(args, fn {k, _v} -> id(k) end))]
     end
-    J.call_expression(id(name), args)
+    J.call_expression(id(id_), args)
   end
   def to_ast(%Logic.Modify{obv: obv, fun: fun}) do
     %_type{name: name} = obv
@@ -157,11 +161,11 @@ defmodule TimeMachine.Compiler do
     case is_list(obv) do
       true ->
         args = Enum.map(List.wrap(obv), fn obv ->
-          %_type{name: name} = obv
+          %{name: name} = obv
           id(name)
         end)
         fun = J.arrow_function_expression(args, [], to_ast(fun))
-        J.call_expression(id(:c), args ++ [fun])
+        J.call_expression(id(:c), [J.array_expression(args), fun])
       _ ->
         %_type{name: name} = obv
         fun = J.arrow_function_expression([id(name)], [], to_ast(fun))
@@ -227,7 +231,7 @@ defmodule TimeMachine.Compiler do
         init = Keyword.get(obv_init, k)
         type = Logic.type_of(init)
         init = cond do
-          type in [:Transform] -> init
+          type in [:Transform] -> to_ast(init)
           type in [:Var] ->
             %{name: name} = init
             id(name)
@@ -321,11 +325,11 @@ defmodule TimeMachine.Compiler do
 
   defp id(str) when is_binary(str), do: J.identifier(String.to_atom(str))
   defp id(atom) when is_atom(atom), do: J.identifier(atom)
-  defp id(atoms) when is_list(atoms) and is_atom(hd(atoms)) do
-    Enum.map(atoms, fn k -> J.identifier(k) end)
+  defp id(kvs) when is_list(kvs) and is_tuple(hd(kvs)) do
+    Enum.map(kvs, fn {k, _v} -> id(k) end)
   end
-  defp id(kvs) when is_list(kvs) do
-    Enum.map(kvs, fn {k, _v} -> J.identifier(k) end)
+  defp id(atoms) when is_list(atoms) do
+    Enum.map(atoms, fn k -> id(k) end)
   end
 
   defp val(v) do

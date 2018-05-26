@@ -15,6 +15,8 @@ end
 defmodule TimeMachine.Logic.Call do
   defstruct tag: :_call,
             mod: nil,
+           name: nil,
+        assigns: [],
              id: nil
 end
 
@@ -144,7 +146,7 @@ defmodule TimeMachine.Logic do
     # unused syntax possibilities: <|>, ???
 
     mod = Keyword.get(info, :module)
-    _name = Keyword.get(info, :name)
+    name = Keyword.get(info, :name)
     info = Keyword.put_new(info, :ids, [])
       |> Keyword.put_new(:pure, true)
 
@@ -154,7 +156,6 @@ defmodule TimeMachine.Logic do
     #       additionally, to simplify the Condition representation, just pull them all right out of `C`
     #       eg. lala = v(C['my_condition'])
 
-    # IO.puts "handle logic: #{mod}.#{name}"
     {block, info} = Macro.traverse(block, info, fn
       # PREWALK (going in)
       { :@, meta, [{ name, _, atom }]} = expr, info when is_atom(name) and is_atom(atom) ->
@@ -419,7 +420,7 @@ defmodule TimeMachine.Logic do
             calls = Keyword.get(info, :calls, [])
               |> Keyword.merge([{id, 1}], fn _k, v1, v2 -> v1 + v2 end)
             info = Keyword.put(info, :calls, calls)
-            expr = quote do: %Logic.Call{mod: unquote(mod), id: unquote(id)}
+            expr = quote do: %Logic.Call{mod: unquote(mod), id: unquote(id), name: unquote(fun), assigns: unquote(assigns)}
             {expr, info}
 
           _ -> {expr, info}
@@ -521,9 +522,24 @@ defmodule TimeMachine.Logic do
   def call_id(name, assigns) when is_atom(name) do
     Atom.to_string(name) |> call_id(assigns)
   end
-  def call_id(name, assigns) when is_binary(name) do
-    # TODO: kw order shouldn't make a difference, so maybe convert to map??
-    String.to_atom(name <> "_" <> Integer.to_string(:erlang.phash2(Enum.into(assigns, %{}))))
+  def call_id(name, assigns) when is_binary(name) and is_list(assigns) do
+    assigns = case length(assigns) do
+      0 -> ""
+      _ ->
+        first = hd(assigns)
+        case Keyword.keyword?(first) do
+          true -> first
+          _ -> assigns
+        end
+        |> Enum.into(%{})
+        |> :erlang.phash2()
+        |> Integer.to_string()
+    end
+    String.to_atom(name <> "_" <> assigns)
+  end
+  def call_id(name, assigns) when is_binary(name) and is_map(assigns) do
+    assigns = :erlang.phash2(assigns) |> Integer.to_string()
+    String.to_atom(name <> "_" <> assigns)
   end
 
   defp mod_list(alias_) do

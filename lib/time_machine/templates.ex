@@ -16,13 +16,14 @@ defmodule TimeMachine.Templates do
         Module.register_attribute(mod, :components, accumulate: true)
         Module.register_attribute(mod, :css, accumulate: true)
         quote do
-          @on_definition TimeMachine.Templates
+          # @on_definition TimeMachine.Templates
           @before_compile TimeMachine.Templates
         end
     end
   end
 
-  def __on_definition__(_env, _kind, _name, args, _guards, _body) do
+  def __on_definition__(_env, _kind, name, args, _guards, _body) do
+    IO.puts "defining: #{name}"
     case args do
       [{:\\, _, [{:var!, _, [{:assigns, _, TimeMachine.Elements}]}, []]}] ->
         # this is pretty unused right now.
@@ -55,6 +56,7 @@ defmodule TimeMachine.Templates do
   def insert(mod, name, assigns, ast) do
     id = Logic.call_id(name, assigns)
     :ets.insert(@ast_tab, {{mod, name, assigns, :id}, id})
+    :ets.insert(@ast_tab, {{mod, id, :assigns}, {name, assigns}})
     :ets.insert(@ast_tab, {{mod, id, :ast}, ast})
     # TODO: need to do deduplication of ids...
     #       assigns which don't produce different asts should have different ids, but resolve to the same ast
@@ -92,13 +94,25 @@ defmodule TimeMachine.Templates do
   def get_args(mod, id) do
     case :ets.lookup(@info_tab, {mod, id, :args}) do
       [{_, args}] -> args
-      _ -> nil
+      _ ->
+        {name, assigns} = get_name_and_assigns(mod, id)
+        apply(mod, name, assigns)
+        get_args(mod, id)
     end
+  end
+  def get_args(mod, name, assigns) do
+    id = Logic.call_id(name, assigns)
+    get_args(mod, id)
   end
 
   def get_calls(mod, id) do
     case :ets.lookup(@info_tab, {mod, id, :calls}) do
-      [{_, calls}] -> calls
+      [{_, calls}] ->
+        Enum.reduce(calls, [], fn {id, count}, calls ->
+          get_calls(mod, id)
+          |> Keyword.merge(calls)
+          |> Keyword.merge([{id, count}])
+        end)
       _ -> nil
     end
   end
@@ -110,6 +124,26 @@ defmodule TimeMachine.Templates do
     end
   end
 
+  def get_name_and_assigns(mod, id) do
+    case :ets.lookup(@ast_tab, {mod, id, :assigns}) do
+      [{_, assigns}] -> assigns
+      _ -> nil
+    end
+  end
+
+  def get_vars(mod, id) do
+    ast = get_ast(mod, id)
+    vars = Logic.enum_logic(ast, [:Obv, :Condition, :Var], :name, :type)
+    calls = get_calls(mod, id)
+    IO.puts "get_vars: #{mod} #{id} - #{inspect vars} - #{inspect calls}"
+    inner_vars = Enum.reduce(calls, vars, fn {id, _v}, vars ->
+      IO.puts "inner_vars,get_vars: #{mod} #{id}"
+      get_vars(mod, id)
+      |> Keyword.merge(vars)
+    end)
+    IO.puts "inner_vars #{inspect inner_vars}"
+    inner_vars
+  end
 
   # server
 
