@@ -210,24 +210,39 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_component, content: content}) do
     J.arrow_function_expression([], [], to_ast(content))
   end
-  def to_ast(%Element{tag: :_panel, content: content, attrs: info}) do
+  def to_ast(%Element{tag: :_panel, content: ast, attrs: info}) do
     lib = Logic.lib_fns() # OPTIMISE: for now, we define all of them, but in the future, only defnine the ones that are required
-    vars = Logic.enum_logic(content, [:Condition, :Var], :name, :type)
-    cdns = Logic.enum_logic(content, :Condition, :name, :count) # OPTIMISE: if count = 1, the v(varname) can be inlined on the spot (save the declaration)
-    obvs = Logic.enum_logic(content, :Obv, :name, :count)
+    mod = Keyword.get(info, :module)
+    id_ = Keyword.get(info, :id)
+    calls =
+      Logic.enum_logic(ast, :Call, :id, :count)
+      |> Enum.reduce([], fn {id, count}, calls ->
+        Templates.get_calls(mod, id)
+        |> Keyword.merge(calls)
+        |> Keyword.merge([{id, count}])
+      end)
+    vars =
+      Templates.ast_vars(mod, ast)
+      |> Enum.group_by(fn {_, type} -> type end, fn {name, _} -> name end)
+
+    %{:Var => vars, :Condition => cdns, :Obv => obvs} =
+      Map.merge(%{:Var => [], :Condition => [], :Obv => []}, vars)
+
+    IO.puts "[[#{id_}]] vars: #{inspect vars} - cdns: #{inspect cdns} - obvs: #{inspect obvs}"
+    # IO.puts "calls: #{inspect calls}"
     lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
-    var_decl = case length(vars) do
+    var_decl = case length(vars = vars ++ cdns) do
       0 -> []
       _ -> [J.variable_declarator(J.object_pattern(id(vars)), id(:C))]
     end
     cdn_decl = case length(cdns) do
       0 -> []
-      _ -> Enum.map(cdns, fn {k, _v} -> J.variable_declarator(id(k), val(k)) end)
+      _ -> Enum.map(cdns, fn k -> J.variable_declarator(id(k), val(k)) end)
     end
     obv_init = Keyword.get(info, :init, [])
-    obv_decl = case length(obv_init) do
+    obv_decl = case length(obvs) do
       0 -> []
-      _ -> Enum.map(obv_init, fn {k, _type} ->
+      _ -> Enum.map(obvs, fn k ->
         init = Keyword.get(obv_init, k)
         type = Logic.type_of(init)
         init = cond do
@@ -241,13 +256,10 @@ defmodule TimeMachine.Compiler do
         J.variable_declarator(id(k), init)
       end)
     end
-    # TODO: OPTIMISE: all templates with calls = 1 can be inlined
+    # OPTIMISE: all templates with calls = 1 can be inlined
     mod = Keyword.get(info, :module)
-    tpl_decl = Keyword.get(info, :calls, [])
-    |> Enum.map(fn {k, v} ->
+    tpl_decl = Enum.map(Enum.reverse(calls), fn {k, v} ->
       ast = Templates.get_ast(mod, k) |> to_ast()
-      # TODO: this is technically incorrect because it should be storing in ets our generated ast, not the estree one
-      # in order to do this, I need to make another pass which
       J.variable_declarator(id(k), ast)
     end)
     J.arrow_function_expression(
@@ -255,7 +267,7 @@ defmodule TimeMachine.Compiler do
       [],
       J.block_statement([
         J.variable_declaration(lib_decl ++ var_decl ++ cdn_decl ++ obv_decl ++ tpl_decl, :const),
-        J.return_statement(to_ast(content))
+        J.return_statement(to_ast(ast))
       ])
     )
   end

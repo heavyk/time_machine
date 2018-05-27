@@ -209,17 +209,17 @@ defmodule ElementsTest do
         ]
       } |> clean()
 
-    assert pnl_inner_tpl() |> clean()
+    assert pnl_inner_inner_tpl() |> clean()
      ==
       %E{content:
-        %E{content: %Logic.Call{mod: TestTemplates, id: :tpl_logic_obv_39679005}, tag: :div
+        %E{content: %Logic.Call{mod: TestTemplates, id: :tpl_inner_tpl_, name: :tpl_inner_tpl}, tag: :div
       }, tag: :_panel,
         attrs: [
-          calls: [tpl_logic_obv_39679005: 1],
+          calls: [tpl_inner_tpl_: 1],
           ids: [num: :Obv],
           init: [num: 4],
           pure: true,
-          name: :pnl_inner_tpl
+          name: :pnl_inner_inner_tpl
         ]
       } |> clean()
   end

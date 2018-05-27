@@ -5,6 +5,7 @@ defmodule CompilerTest do
 
   import TestTemplates
   alias TimeMachine.Logic
+  alias TimeMachine.Templates
 
   doctest TimeMachine.Compiler
 
@@ -13,9 +14,12 @@ defmodule CompilerTest do
     |> ESTree.Tools.Generator.generate(false)
   end
 
-  defp call_tpl(name, args) when is_atom(name) do
-    %{id: Logic.call_id(name, args),
-      js: apply(TestTemplates, name, args) |> to_js()}
+  defp call_tpl(name, assigns \\ []) when is_atom(name) do
+    id = Logic.call_id(name, assigns)
+    js = apply(TestTemplates, name, assigns) |> to_js()
+    args = Templates.get_args(TestTemplates, id)
+    call_js = %Logic.Call{mod: TestTemplates, id: id} |> to_js()
+    %{id: id, js: js, args: args, call: call_js}
   end
 
   test "elements generate proper js" do
@@ -93,13 +97,30 @@ defmodule CompilerTest do
       |> Logic.handle_logic()
       |> to_js()
     end
+  end
 
+  test "test templates render to js correctly" do
     # logic renders to js correctly
-    assert tpl_logic_var() |> to_js() == "()=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"
-    assert tpl_logic_obv() |> to_js() == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
-    assert tpl_logic_multi_var() |> to_js() == "()=>[num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)]"
-    assert tpl_logic_multi_obv() |> to_js() == "({num,mun})=>[c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))]"
-    assert tpl_logic_multi_obv_var() |> to_js() == "({mun})=>[t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))]"
+    tpl_logic_var = call_tpl(:tpl_logic_var)
+    assert tpl_logic_var.js == "()=>[num==2?h('div','yay'):h('div','nope'),num==2?h('div','yay'):null,h('div',num!=2?'yay':'nope'),h('div',num!=2?'yay':null)]"
+
+    tpl_logic_obv = call_tpl(:tpl_logic_obv)
+    assert tpl_logic_obv.js == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
+
+    tpl_logic_multi_var = call_tpl(:tpl_logic_multi_var)
+    assert tpl_logic_multi_var.js == "()=>[num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)]"
+
+    tpl_logic_multi_obv = call_tpl(:tpl_logic_multi_obv)
+    assert tpl_logic_multi_obv.js == "({num,mun})=>[c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))]"
+
+    tpl_logic_multi_obv_var = call_tpl(:tpl_logic_multi_obv_var)
+    assert tpl_logic_multi_obv_var.js == "({mun})=>[t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))]"
+
+    tpl_logic_obv = call_tpl(:tpl_logic_obv)
+    assert tpl_logic_obv.js == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
+
+    tpl_inner_tpl = call_tpl(:tpl_inner_tpl)
+    assert tpl_inner_tpl.js == "()=>h('div',tpl_obv({}),tpl_logic_mixed_53552546({oo}))"
   end
 
   test "basic panels generate proper js" do
@@ -115,8 +136,8 @@ defmodule CompilerTest do
     # normal logic renders properly (they will assume that the obvs, `num` and `mun` already exist inside of its environment)
     assert pnl_logic_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
     assert pnl_logic_cdn() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C,mun=v(mun),num=v(num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
-    assert pnl_logic_obv() |> to_js() == "({G,C})=>{const {h,t,c,v}=G;return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
-    assert pnl_logic_obv_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{num}=C;return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_obv() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,mun=v(),num=v();return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_obv_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{num}=C,mun=v();return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
 
     # these test that defining an obv in the panel will defines its presence in that scope
     assert pnl_obv_assign() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4);return h('div','num is',num);}"
@@ -125,8 +146,16 @@ defmodule CompilerTest do
     # by default, it will consider all templates to be pure.
     # later, an optimisation pass will be able to remove passing of variables purely if purity isn't needed (thereby generating smaller code)
 
-    tpl_logic_obv = call_tpl(:tpl_logic_obv, [])
-    assert pnl_inner_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
+    tpl_logic_obv = call_tpl(:tpl_logic_obv)
+    assert tpl_logic_obv.js == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
+    assert pnl_inner_obv_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
+
+    tpl_inner_tpl = call_tpl(:tpl_inner_tpl)
+    assert tpl_inner_tpl.js == "()=>h('div',tpl_logic_mixed_53552546({oo}))"
+    tpl_logic_mixed = call_tpl(:tpl_logic_mixed)
+    assert tpl_logic_mixed.js == "({oo})=>[t(oo,oo=>oo==2?h('div','yay'):h('div','nope')),vv==2?h('div','yay'):h('div','nope'),h('div','nope'),t(oo,oo=>oo==2?h('div','yay'):null),vv==2?h('div','yay'):null,null,h('div',t(oo,oo=>oo!=2?'yay':'nope')),h('div',vv!=2?'yay':'nope'),h('div','yay'),h('div',t(oo,oo=>oo!=2?'yay':null)),h('div',vv!=2?'yay':null),h('div','yay')]"
+    assert pnl_inner_inner_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_inner_tpl.id}=#{tpl_inner_tpl.js},#{tpl_logic_mixed.id}=#{tpl_logic_mixed.js};return h('div',#{tpl_logic_obv.id}({num}));}"
+                                             # "({G,C})=>{const {h,t,c,v}=G,num=v(4),tpl_inner_tpl_=()=>h('div',tpl_logic_mixed_53552546({oo}));return h('div',tpl_inner_tpl_());}"
   end
 
   test "templates cannot have assigns" do
@@ -167,15 +196,49 @@ defmodule CompilerTest do
       quote do
         template :reserved_name do
           div ~o(c)
+        end
+      end |> Logic.clean_quoted() |> Logic.handle_logic()
+    end
+
+    assert_raise LogicError, fn ->
+      quote do
+        template :reserved_name do
           div ~o(t)
+        end
+      end |> Logic.clean_quoted() |> Logic.handle_logic()
+    end
+
+    assert_raise LogicError, fn ->
+      quote do
+        template :reserved_name do
           div ~o(v)
+        end
+      end |> Logic.clean_quoted() |> Logic.handle_logic()
+    end
+
+    assert_raise LogicError, fn ->
+      quote do
+        template :reserved_name do
           div ~o(G)
+        end
+      end |> Logic.clean_quoted() |> Logic.handle_logic()
+    end
+
+    assert_raise LogicError, fn ->
+      quote do
+        template :reserved_name do
           div ~o(C)
         end
-      end
-      |> Logic.clean_quoted()
-      |> Logic.handle_logic()
+      end |> Logic.clean_quoted() |> Logic.handle_logic()
     end
+
+    # assert_raise LogicError, fn ->
+    #   quote do
+    #     template :reserved_name do
+    #       div ~o(m)
+    #     end
+    #   end |> Logic.clean_quoted() |> Logic.handle_logic()
+    # end
   end
 
   test "cond statement cannot have guard clauses" do
@@ -193,6 +256,56 @@ defmodule CompilerTest do
       |> Logic.handle_logic()
       |> IO.inspect
     end
+  end
+
+  test "plugin demo works" do
+    tpl_cdn = call_tpl(:tpl_cdn)
+    tpl_obv = call_tpl(:tpl_obv)
+    tpl_boink = call_tpl(:tpl_boink)
+    tpl_words = call_tpl(:tpl_words)
+    tpl_select = call_tpl(:tpl_select)
+    pnl_plugin_demo = call_tpl(:pnl_plugin_demo)
+    # ast = Templates.get_ast(TestTemplates, pnl_plugin_demo.id)
+    # vars = Logic.enum_logic(ast, [:Obv, :Condition], :name, :count)
+    # vars = Templates.get_vars(TestTemplates, pnl_plugin_demo.id)
+    # calls = Templates.get_calls(TestTemplates, pnl_plugin_demo.id)
+    # TODO: I need to make sure and for each call, also get those variables
+    # IO.puts "vars: #{inspect vars}"
+    # IO.puts "calls: #{inspect calls}"
+    assert pnl_plugin_demo() |> to_js() ==
+      "({G,C})=>{" <>
+        "const {h,t,c,v}=G," <>
+          "{lala}=C," <>
+          "lala=v(lala)," <>
+          "sum=c([lala,num],(lala,num)=>num+lala)," <>
+          "num=v(11)," <>
+          "pressed=v(false)," <>
+          "boinked=v(false)," <>
+          "w2=v()," <>
+          "w1=v()," <>
+          "selected=v()," <>
+          "#{tpl_cdn.id}=#{tpl_cdn.js}," <>
+          "#{tpl_obv.id}=#{tpl_obv.js}," <>
+          "#{tpl_boink.id}=#{tpl_boink.js}," <>
+          "#{tpl_words.id}=#{tpl_words.js}," <>
+          "#{tpl_select.id}=#{tpl_select.js}" <>
+        ";return h('div'," <>
+          "h('h1','simple plugin demo')," <>
+          "h('hr')," <>
+          "h('h3','conditions, numbers, and transformations')," <>
+          "#{tpl_cdn.call}," <>
+          "#{tpl_obv.call}," <>
+          "h('hr')," <>
+          "h('h3','mouse / touch events')," <>
+          "#{tpl_boink.call}," <>
+          "h('hr')," <>
+          "h('h3','text input')," <>
+          "#{tpl_words.call}," <>
+          "h('hr')," <>
+          "h('h3','select boxes')," <>
+          "#{tpl_select.call}" <>
+        ");" <>
+      "}"
   end
 
   test "injected js renders proprly and plays nicely" do

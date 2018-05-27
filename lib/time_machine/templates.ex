@@ -55,7 +55,7 @@ defmodule TimeMachine.Templates do
 
   def insert(mod, name, assigns, ast) do
     id = Logic.call_id(name, assigns)
-    :ets.insert(@ast_tab, {{mod, name, assigns, :id}, id})
+    # :ets.insert(@ast_tab, {{mod, name, assigns, :id}, id})
     :ets.insert(@ast_tab, {{mod, id, :assigns}, {name, assigns}})
     :ets.insert(@ast_tab, {{mod, id, :ast}, ast})
     # TODO: need to do deduplication of ids...
@@ -113,7 +113,11 @@ defmodule TimeMachine.Templates do
           |> Keyword.merge(calls)
           |> Keyword.merge([{id, count}])
         end)
-      _ -> nil
+      _ ->
+        ast = get_ast(mod, id)
+        calls = Logic.enum_logic(ast, :Call, :id, :count)
+        :ets.insert(@info_tab, {{mod, id, :calls}, calls})
+        get_calls(mod, id)
     end
   end
 
@@ -133,16 +137,20 @@ defmodule TimeMachine.Templates do
 
   def get_vars(mod, id) do
     ast = get_ast(mod, id)
+    ast_vars(mod, ast)
+  end
+
+  def ast_vars(mod, ast) do
+    calls = Logic.enum_logic(ast, :Call, :id, :count)
     vars = Logic.enum_logic(ast, [:Obv, :Condition, :Var], :name, :type)
-    calls = get_calls(mod, id)
-    IO.puts "get_vars: #{mod} #{id} - #{inspect vars} - #{inspect calls}"
-    inner_vars = Enum.reduce(calls, vars, fn {id, _v}, vars ->
-      IO.puts "inner_vars,get_vars: #{mod} #{id}"
-      get_vars(mod, id)
-      |> Keyword.merge(vars)
+    Enum.reduce(calls, vars, fn {id, _v}, vars ->
+      get_vars(mod, id) |> Keyword.merge(vars, fn k, t1, t2 ->
+        cond do
+          t1 != t2 -> raise "key #{k} is already a #{t1} in #{mod}. cannot redefine it to be a #{t2}"
+          true -> t1
+        end
+      end)
     end)
-    IO.puts "inner_vars #{inspect inner_vars}"
-    inner_vars
   end
 
   # server
