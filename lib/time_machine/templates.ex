@@ -41,7 +41,6 @@ defmodule TimeMachine.Templates do
   def set_ast(mod, name, assigns, ast) do
     if is_tuple(assigns), do: raise "..."
     id = Logic.call_id(name, assigns)
-    # :ets.insert(@ast_tab, {{mod, name, assigns, :id}, id})
     :ets.insert(@ast_tab, {{mod, id, :assigns}, {name, assigns}})
     :ets.insert(@ast_tab, {{mod, id, :ast}, ast})
     # TODO: need to do deduplication of ids...

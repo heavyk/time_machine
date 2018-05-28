@@ -11,6 +11,9 @@ the idea is that when you make the templates, you are not actually making transf
 
 ### current effort
 
+- create the ability for a module to be essentially a "scope"
+- ensure all versions of assigns that generate the same bytecode will resolve to the same phash id
+
 - remake the architect:
   - elixir port to tell node to do stuff: https://github.com/nmuth/elixir_port_benchmarks/blob/master/lib/port_handler.ex
   - elixir file_system for file modifications

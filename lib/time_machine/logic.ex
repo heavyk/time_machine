@@ -146,7 +146,6 @@ defmodule TimeMachine.Logic do
     # unused syntax possibilities: <|>, ???
 
     mod = Keyword.get(info, :module)
-    name = Keyword.get(info, :name)
     info = Keyword.put_new(info, :ids, [])
       |> Keyword.put_new(:pure, true)
 
