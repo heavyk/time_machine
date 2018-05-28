@@ -144,7 +144,7 @@ defmodule CompilerTest do
 
     # normal logic renders properly (they will assume that the obvs, `num` and `mun` already exist inside of its environment)
     assert pnl_logic_var.js == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
-    assert pnl_logic_cdn.js == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C,mun=v(mun),num=v(num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_cdn.js == "({G,C})=>{const {h,t,c,v}=G,mun=v(C.mun),num=v(C.num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
     assert pnl_logic_obv.js == "({G,C})=>{const {h,t,c,v}=G,mun=v(),num=v();return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
     assert pnl_logic_obv_var.js == "({G,C})=>{const {h,t,c,v}=G,{num}=C,mun=v();return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
 
@@ -169,6 +169,7 @@ defmodule CompilerTest do
     assert tpl_inner_tpl.js == "()=>h('div',tpl_obv_18333003({num}),tpl_logic_mixed_53552546({oo}))"
     assert tpl_logic_mixed.js == "({oo})=>[t(oo,oo=>oo==2?h('div','yay'):h('div','nope')),vv==2?h('div','yay'):h('div','nope'),h('div','nope'),t(oo,oo=>oo==2?h('div','yay'):null),vv==2?h('div','yay'):null,null,h('div',t(oo,oo=>oo!=2?'yay':'nope')),h('div',vv!=2?'yay':'nope'),h('div','yay'),h('div',t(oo,oo=>oo!=2?'yay':null)),h('div',vv!=2?'yay':null),h('div','yay')]"
     assert pnl_inner_inner_tpl.js == "({G,C})=>{const {h,t,c,v}=G,{vv}=C,num=v(4),oo=v(),#{tpl_inner_tpl.id}=#{tpl_inner_tpl.js},#{tpl_obv.id}=#{tpl_obv.js},#{tpl_logic_mixed.id}=#{tpl_logic_mixed.js};return h('div',#{tpl_inner_tpl.id}());}"
+    assert tpl_obv.js == "({num})=>h('.tpl_obv','num is:',num,h('.click',h('button',{boink:m(num,num=>num+1)},'num++'),h('button',{boink:m(num,num=>num-1)},'num--')))"
   end
 
   test "templates cannot have assigns" do
@@ -288,8 +289,7 @@ defmodule CompilerTest do
     assert pnl_plugin_demo.js ==
       "({G,C})=>{" <>
         "const {h,t,c,v}=G," <>
-          "{lala}=C," <>
-          "lala=v(lala)," <>
+          "lala=v(C.lala)," <>
           "sum=c([lala,num],(lala,num)=>num+lala)," <>
           "num=v(11)," <>
           "pressed=v(false)," <>

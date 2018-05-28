@@ -228,13 +228,18 @@ defmodule TimeMachine.Compiler do
       Map.merge(%{:Var => [], :Condition => [], :Obv => []}, vars)
 
     lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
-    var_decl = case length(vars = vars ++ cdns) do
+    var_decl = case length(vars) do
       0 -> []
       _ -> [J.variable_declarator(J.object_pattern(id(vars)), id(:C))]
     end
     cdn_decl = case length(cdns) do
       0 -> []
-      _ -> Enum.map(cdns, fn k -> J.variable_declarator(id(k), val(k)) end)
+      _ ->
+      Enum.map(cdns, fn k ->
+        cvar = J.member_expression(id(:C), id(k), compute_id?(k))
+        cvar = J.call_expression(id(:v), [cvar])
+        J.variable_declarator(id(k), cvar)
+      end)
     end
     obv_init = Keyword.get(info, :init, [])
     obv_decl = case length(obvs) do
@@ -255,7 +260,7 @@ defmodule TimeMachine.Compiler do
     end
     # OPTIMISE: all templates with calls = 1 can be inlined
     mod = Keyword.get(info, :module)
-    tpl_decl = Enum.map(Enum.reverse(calls), fn {k, v} ->
+    tpl_decl = Enum.map(Enum.reverse(calls), fn {k, _v} ->
       ast = Templates.get_ast(mod, k) |> to_ast()
       J.variable_declarator(id(k), ast)
     end)
@@ -339,6 +344,72 @@ defmodule TimeMachine.Compiler do
   end
   defp id(atoms) when is_list(atoms) do
     Enum.map(atoms, fn k -> id(k) end)
+  end
+
+  # keywords
+  defp compute_id?(id) when is_atom(id), do: Atom.to_string(id) |> compute_id?()
+  defp compute_id?("if"), do: true
+  defp compute_id?("in"), do: true
+  defp compute_id?("do"), do: true
+  defp compute_id?("var"), do: true
+  defp compute_id?("for"), do: true
+  defp compute_id?("new"), do: true
+  defp compute_id?("try"), do: true
+  defp compute_id?("this"), do: true
+  defp compute_id?("else"), do: true
+  defp compute_id?("case"), do: true
+  defp compute_id?("void"), do: true
+  defp compute_id?("with"), do: true
+  defp compute_id?("enum"), do: true
+  defp compute_id?("while"), do: true
+  defp compute_id?("break"), do: true
+  defp compute_id?("catch"), do: true
+  defp compute_id?("throw"), do: true
+  defp compute_id?("const"), do: true
+  defp compute_id?("yield"), do: true
+  defp compute_id?("class"), do: true
+  defp compute_id?("super"), do: true
+  defp compute_id?("return"), do: true
+  defp compute_id?("typeof"), do: true
+  defp compute_id?("delete"), do: true
+  defp compute_id?("switch"), do: true
+  defp compute_id?("export"), do: true
+  defp compute_id?("import"), do: true
+  defp compute_id?("default"), do: true
+  defp compute_id?("finally"), do: true
+  defp compute_id?("extends"), do: true
+  defp compute_id?("function"), do: true
+  defp compute_id?("continue"), do: true
+  defp compute_id?("debugger"), do: true
+  defp compute_id?("instanceof"), do: true
+
+  # ES6 reserved
+  defp compute_id?("implements"), do: true
+  defp compute_id?("interface"), do: true
+  defp compute_id?("package"), do: true
+  defp compute_id?("private"), do: true
+  defp compute_id?("protected"), do: true
+  defp compute_id?("public"), do: true
+  defp compute_id?("static"), do: true
+  defp compute_id?("let"), do: true
+
+  # bad practice
+  defp compute_id?("null"), do: true
+  defp compute_id?("true"), do: true
+  defp compute_id?("false"), do: true
+
+  defp compute_id?(str) do
+    cl = String.to_charlist(str)
+    ch = hd(cl)
+    cond do
+      (ch >= 0x61 and ch <= 0x7A) or  # a..z
+      (ch >= 0x41 and ch <= 0x5A) or  # A..Z
+      (ch === 0x24) or (ch === 0x5F)  # $ (dollar) and _ (underscore)
+        -> false
+      true ->
+        # the rest... (for now, we just compute it by default)
+        true
+    end
   end
 
   defp val(v) do
