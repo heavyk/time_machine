@@ -11,7 +11,7 @@ defmodule TimeMachine.Elements do
            :html, :head, :meta, :link, :script, :title, :body],
     containers: [:template, :component, :panel]
 
-  @transformers [ &TimeMachine.Logic.handle_logic/2 ]
+  # @transformers [ &TimeMachine.Logic.handle_logic/2 ]
 
   # by default, Marker will essentially make the same using function, but without the register_attribute calls.
   # this is to allow my custom definitions of containers to be able to rely on that module attribute
@@ -30,56 +30,24 @@ defmodule TimeMachine.Elements do
 
   @doc "Define a new template"
   defmacro template(name, do: block) when is_atom(name) do
-    caller = __CALLER__
-    mod = caller.module
-    use_elements = Module.get_attribute(mod, :marker_use_elements)
-    info = [name: name, module: mod]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    Templates.define(mod, name, :template, info)
+    mod = __CALLER__.module
     Module.put_attribute(mod, :templates, name)
-    quote do
-      def unquote(name)(var!(assigns) \\ []) do
-        unquote(use_elements)
-        _ = var!(assigns)
-        block = unquote(block)
-        ast = template_ unquote(info), do: block
-        Templates.insert(unquote(mod), unquote(name), var!(assigns), ast)
-        ast
-      end
-    end
+    Templates.define(mod, name, :template, block)
   end
 
   @doc "panel is like a template, but it defines a new js scope (env)"
   defmacro panel(name, do: block) when is_atom(name) do
-    caller = __CALLER__
-    mod = caller.module
-    use_elements = Module.get_attribute(mod, :marker_use_elements)
-    info = [name: name, module: mod, init: []]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    Templates.define(mod, name, :panel, info)
+    mod = __CALLER__.module
+    Templates.define(mod, name, :panel, block)
     Module.put_attribute(mod, :panels, name)
-    quote do
-      def unquote(name)(var!(assigns) \\ []) do
-        unquote(use_elements)
-        _ = var!(assigns)
-        block = unquote(block)
-        ast = panel_ unquote(info), do: block
-        Templates.insert(unquote(mod), unquote(name), var!(assigns), ast)
-        ast
-      end
-    end
   end
 
   # @doc "component is a contained ... TODO - work all this out"
   defmacro component(name, do: block) when is_atom(name) do
-    caller = __CALLER__
-    mod = caller.module
-    template = String.to_atom(Atom.to_string(name) <> "__template")
-    use_elements = Module.get_attribute(mod, :marker_use_elements)
-    info = [name: name, module: mod]
-    {block, info} = Enum.reduce(@transformers, {block, info}, fn t, {blk, info} -> t.(blk, info) end)
-    Templates.define(mod, name, :component, info)
+    mod = __CALLER__.module
+    Templates.define(mod, name, :component, block)
     Module.put_attribute(mod, :components, name)
+    template = String.to_atom(Atom.to_string(name) <> "__template")
     quote do
       defmacro unquote(name)(c1 \\ nil, c2 \\ nil, c3 \\ nil, c4 \\ nil, c5 \\ nil) do
         caller = __CALLER__
@@ -96,15 +64,6 @@ defmodule TimeMachine.Elements do
         quote do
           unquote(__MODULE__).unquote(template)(unquote(assigns))
         end
-      end
-      @doc false
-      def unquote(template)(var!(assigns) \\ []) do
-        unquote(use_elements)
-        _ = var!(assigns)
-        block = unquote(block)
-        ast = component_ unquote(info), do: block
-        Templates.insert(unquote(mod), unquote(name), var!(assigns), ast)
-        ast
       end
     end
   end

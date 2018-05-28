@@ -16,10 +16,11 @@ defmodule CompilerTest do
 
   defp call_tpl(name, assigns \\ []) when is_atom(name) do
     id = Logic.call_id(name, assigns)
-    js = apply(TestTemplates, name, assigns) |> to_js()
+    ast = apply(TestTemplates, name, [assigns])
+    js = ast |> to_js()
     args = Templates.get_args(TestTemplates, id)
     call_js = %Logic.Call{mod: TestTemplates, id: id} |> to_js()
-    %{id: id, js: js, args: args, call: call_js}
+    %{id: id, js: js, ast: ast, args: args, call: call_js}
   end
 
   test "elements generate proper js" do
@@ -120,7 +121,7 @@ defmodule CompilerTest do
     assert tpl_logic_obv.js == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
 
     tpl_inner_tpl = call_tpl(:tpl_inner_tpl)
-    assert tpl_inner_tpl.js == "()=>h('div',tpl_obv({}),tpl_logic_mixed_53552546({oo}))"
+    assert tpl_inner_tpl.js == "()=>h('div',tpl_obv_18333003({num}),tpl_logic_mixed_53552546({oo}))"
   end
 
   test "basic panels generate proper js" do
@@ -132,30 +133,42 @@ defmodule CompilerTest do
     # - semicolons after return, break, continue, etc. statements.
     # - return [1,2,3]; -> return[1,2,3]
 
+    # TODO: do this automatically enumerating TestTemplates.templates
+
+    pnl_logic_var = call_tpl(:pnl_logic_var)
+    pnl_logic_cdn = call_tpl(:pnl_logic_cdn)
+    pnl_logic_obv = call_tpl(:pnl_logic_obv)
+    pnl_logic_obv_var = call_tpl(:pnl_logic_obv_var)
+    pnl_obv_assign = call_tpl(:pnl_obv_assign)
+
 
     # normal logic renders properly (they will assume that the obvs, `num` and `mun` already exist inside of its environment)
-    assert pnl_logic_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
-    assert pnl_logic_cdn() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C,mun=v(mun),num=v(num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
-    assert pnl_logic_obv() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,mun=v(),num=v();return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
-    assert pnl_logic_obv_var() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,{num}=C,mun=v();return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_var.js == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_cdn.js == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C,mun=v(mun),num=v(num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_obv.js == "({G,C})=>{const {h,t,c,v}=G,mun=v(),num=v();return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_obv_var.js == "({G,C})=>{const {h,t,c,v}=G,{num}=C,mun=v();return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
 
     # these test that defining an obv in the panel will defines its presence in that scope
-    assert pnl_obv_assign() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4);return h('div','num is',num);}"
+    assert pnl_obv_assign.js == "({G,C})=>{const {h,t,c,v}=G,num=v(4);return h('div','num is',num);}"
 
     # this one doesn't work yet, because I need to save the templates by name and also assigns. then, inline the template into the env, and call the template
     # by default, it will consider all templates to be pure.
     # later, an optimisation pass will be able to remove passing of variables purely if purity isn't needed (thereby generating smaller code)
 
     tpl_logic_obv = call_tpl(:tpl_logic_obv)
+    pnl_inner_obv_tpl = call_tpl(:pnl_inner_obv_tpl)
+
     assert tpl_logic_obv.js == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
-    assert pnl_inner_obv_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
+    assert pnl_inner_obv_tpl.js == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
 
     tpl_inner_tpl = call_tpl(:tpl_inner_tpl)
-    assert tpl_inner_tpl.js == "()=>h('div',tpl_logic_mixed_53552546({oo}))"
-    tpl_logic_mixed = call_tpl(:tpl_logic_mixed)
+    tpl_obv = call_tpl(:tpl_obv, [num: 1])
+    tpl_logic_mixed = call_tpl(:tpl_logic_mixed, lala: 1234)
+    pnl_inner_inner_tpl = call_tpl(:pnl_inner_inner_tpl)
+
+    assert tpl_inner_tpl.js == "()=>h('div',tpl_obv_18333003({num}),tpl_logic_mixed_53552546({oo}))"
     assert tpl_logic_mixed.js == "({oo})=>[t(oo,oo=>oo==2?h('div','yay'):h('div','nope')),vv==2?h('div','yay'):h('div','nope'),h('div','nope'),t(oo,oo=>oo==2?h('div','yay'):null),vv==2?h('div','yay'):null,null,h('div',t(oo,oo=>oo!=2?'yay':'nope')),h('div',vv!=2?'yay':'nope'),h('div','yay'),h('div',t(oo,oo=>oo!=2?'yay':null)),h('div',vv!=2?'yay':null),h('div','yay')]"
-    assert pnl_inner_inner_tpl() |> to_js() == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_inner_tpl.id}=#{tpl_inner_tpl.js},#{tpl_logic_mixed.id}=#{tpl_logic_mixed.js};return h('div',#{tpl_logic_obv.id}({num}));}"
-                                             # "({G,C})=>{const {h,t,c,v}=G,num=v(4),tpl_inner_tpl_=()=>h('div',tpl_logic_mixed_53552546({oo}));return h('div',tpl_inner_tpl_());}"
+    assert pnl_inner_inner_tpl.js == "({G,C})=>{const {h,t,c,v}=G,{vv}=C,num=v(4),oo=v(),#{tpl_inner_tpl.id}=#{tpl_inner_tpl.js},#{tpl_obv.id}=#{tpl_obv.js},#{tpl_logic_mixed.id}=#{tpl_logic_mixed.js};return h('div',#{tpl_inner_tpl.id}());}"
   end
 
   test "templates cannot have assigns" do
@@ -272,7 +285,7 @@ defmodule CompilerTest do
     # TODO: I need to make sure and for each call, also get those variables
     # IO.puts "vars: #{inspect vars}"
     # IO.puts "calls: #{inspect calls}"
-    assert pnl_plugin_demo() |> to_js() ==
+    assert pnl_plugin_demo.js ==
       "({G,C})=>{" <>
         "const {h,t,c,v}=G," <>
           "{lala}=C," <>

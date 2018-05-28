@@ -16,28 +16,9 @@ defmodule TimeMachine.Templates do
         Module.register_attribute(mod, :components, accumulate: true)
         Module.register_attribute(mod, :css, accumulate: true)
         quote do
-          # @on_definition TimeMachine.Templates
-          @before_compile TimeMachine.Templates
+          # @on_definition TimeMachine.TemplateCompiler
+          @before_compile TimeMachine.TemplateCompiler
         end
-    end
-  end
-
-  def __on_definition__(_env, _kind, name, args, _guards, _body) do
-    IO.puts "defining: #{name}"
-    case args do
-      [{:\\, _, [{:var!, _, [{:assigns, _, TimeMachine.Elements}]}, []]}] ->
-        # this is pretty unused right now.
-        nil
-      _args_ -> nil
-    end
-  end
-
-  defmacro __before_compile__(_env) do
-    quote do
-      def templates(), do: @templates
-      def panels(), do: @panels
-      def components(), do: @components
-      def css(), do: @css
     end
   end
 
@@ -47,13 +28,18 @@ defmodule TimeMachine.Templates do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def define(mod, name, type, info) do
+  def define(mod, name, type, block) do
     :ets.insert(@info_tab, {{mod, type, :name}, name})
     :ets.insert(@info_tab, {{mod, name, :type}, type})
+    :ets.insert(@info_tab, {{mod, name, :block}, block})
+  end
+
+  def set_info(mod, name, info) do
     :ets.insert(@info_tab, {{mod, name, :info}, info})
   end
 
-  def insert(mod, name, assigns, ast) do
+  def set_ast(mod, name, assigns, ast) do
+    if is_tuple(assigns), do: raise "..."
     id = Logic.call_id(name, assigns)
     # :ets.insert(@ast_tab, {{mod, name, assigns, :id}, id})
     :ets.insert(@ast_tab, {{mod, id, :assigns}, {name, assigns}})
@@ -84,9 +70,16 @@ defmodule TimeMachine.Templates do
     end
   end
 
-  def get_info(mod, id) do
-    case :ets.lookup(@info_tab, {mod, id, :info}) do
+  def get_info(mod, name) do
+    case :ets.lookup(@info_tab, {mod, name, :info}) do
       [{_, info}] -> info
+      _ -> nil
+    end
+  end
+
+  def get_block(mod, name) do
+    case :ets.lookup(@info_tab, {mod, name, :block}) do
+      [{_, block}] -> block
       _ -> nil
     end
   end

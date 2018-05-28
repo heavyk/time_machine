@@ -213,7 +213,6 @@ defmodule TimeMachine.Compiler do
   def to_ast(%Element{tag: :_panel, content: ast, attrs: info}) do
     lib = Logic.lib_fns() # OPTIMISE: for now, we define all of them, but in the future, only defnine the ones that are required
     mod = Keyword.get(info, :module)
-    id_ = Keyword.get(info, :id)
     calls =
       Logic.enum_logic(ast, :Call, :id, :count)
       |> Enum.reduce([], fn {id, count}, calls ->
@@ -228,8 +227,6 @@ defmodule TimeMachine.Compiler do
     %{:Var => vars, :Condition => cdns, :Obv => obvs} =
       Map.merge(%{:Var => [], :Condition => [], :Obv => []}, vars)
 
-    IO.puts "[[#{id_}]] vars: #{inspect vars} - cdns: #{inspect cdns} - obvs: #{inspect obvs}"
-    # IO.puts "calls: #{inspect calls}"
     lib_decl = [J.variable_declarator(J.object_pattern(id(lib)), id(:G))]
     var_decl = case length(vars = vars ++ cdns) do
       0 -> []
