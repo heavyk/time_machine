@@ -134,7 +134,7 @@ defmodule TimeMachine.Logic do
     end
   end
 
-  @lib [:h,:t,:c,:v]
+  @lib [:h,:t,:c,:v,:m]
   def lib_fns(), do: @lib
 
   # negative emotion speaks to my misunderstanding what is rally going on

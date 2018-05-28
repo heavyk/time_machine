@@ -143,13 +143,13 @@ defmodule CompilerTest do
 
 
     # normal logic renders properly (they will assume that the obvs, `num` and `mun` already exist inside of its environment)
-    assert pnl_logic_var.js == "({G,C})=>{const {h,t,c,v}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
-    assert pnl_logic_cdn.js == "({G,C})=>{const {h,t,c,v}=G,mun=v(C.mun),num=v(C.num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
-    assert pnl_logic_obv.js == "({G,C})=>{const {h,t,c,v}=G,mun=v(),num=v();return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
-    assert pnl_logic_obv_var.js == "({G,C})=>{const {h,t,c,v}=G,{num}=C,mun=v();return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_var.js == "({G,C})=>{const {h,t,c,v,m}=G,{mun,num}=C;return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_cdn.js == "({G,C})=>{const {h,t,c,v,m}=G,mun=v(C.mun),num=v(C.num);return [num==2&&mun==2?h('div','yay'):h('div','nope'),num==2&&mun==2?h('div','yay'):null,h('div',num!=2&&mun==2?'yay':'nope'),h('div',num!=2&&mun==2?'yay':null)];}"
+    assert pnl_logic_obv.js == "({G,C})=>{const {h,t,c,v,m}=G,mun=v(),num=v();return [c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):h('div','nope')),c([mun,num],(mun,num)=>num==2&&mun==2?h('div','yay'):null),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':'nope')),h('div',c([mun,num],(mun,num)=>num!=2&&mun==2?'yay':null))];}"
+    assert pnl_logic_obv_var.js == "({G,C})=>{const {h,t,c,v,m}=G,{num}=C,mun=v();return [t(mun,mun=>num==2&&mun==2?h('div','yay'):h('div','nope')),t(mun,mun=>num==2&&mun==2?h('div','yay'):null),h('div',t(mun,mun=>num!=2&&mun==2?'yay':'nope')),h('div',t(mun,mun=>num!=2&&mun==2?'yay':null))];}"
 
     # these test that defining an obv in the panel will defines its presence in that scope
-    assert pnl_obv_assign.js == "({G,C})=>{const {h,t,c,v}=G,num=v(4);return h('div','num is',num);}"
+    assert pnl_obv_assign.js == "({G,C})=>{const {h,t,c,v,m}=G,num=v(4);return h('div','num is',num);}"
 
     # this one doesn't work yet, because I need to save the templates by name and also assigns. then, inline the template into the env, and call the template
     # by default, it will consider all templates to be pure.
@@ -159,7 +159,7 @@ defmodule CompilerTest do
     pnl_inner_obv_tpl = call_tpl(:pnl_inner_obv_tpl)
 
     assert tpl_logic_obv.js == "({num})=>[t(num,num=>num==2?h('div','yay'):h('div','nope')),t(num,num=>num==2?h('div','yay'):null),h('div',t(num,num=>num!=2?'yay':'nope')),h('div',t(num,num=>num!=2?'yay':null))]"
-    assert pnl_inner_obv_tpl.js == "({G,C})=>{const {h,t,c,v}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
+    assert pnl_inner_obv_tpl.js == "({G,C})=>{const {h,t,c,v,m}=G,num=v(4),#{tpl_logic_obv.id}=#{tpl_logic_obv.js};return h('div',#{tpl_logic_obv.id}({num}));}"
 
     tpl_inner_tpl = call_tpl(:tpl_inner_tpl)
     tpl_obv = call_tpl(:tpl_obv, [num: 1])
@@ -168,7 +168,7 @@ defmodule CompilerTest do
 
     assert tpl_inner_tpl.js == "()=>h('div',tpl_obv_18333003({num}),tpl_logic_mixed_53552546({oo}))"
     assert tpl_logic_mixed.js == "({oo})=>[t(oo,oo=>oo==2?h('div','yay'):h('div','nope')),vv==2?h('div','yay'):h('div','nope'),h('div','nope'),t(oo,oo=>oo==2?h('div','yay'):null),vv==2?h('div','yay'):null,null,h('div',t(oo,oo=>oo!=2?'yay':'nope')),h('div',vv!=2?'yay':'nope'),h('div','yay'),h('div',t(oo,oo=>oo!=2?'yay':null)),h('div',vv!=2?'yay':null),h('div','yay')]"
-    assert pnl_inner_inner_tpl.js == "({G,C})=>{const {h,t,c,v}=G,{vv}=C,num=v(4),oo=v(),#{tpl_inner_tpl.id}=#{tpl_inner_tpl.js},#{tpl_obv.id}=#{tpl_obv.js},#{tpl_logic_mixed.id}=#{tpl_logic_mixed.js};return h('div',#{tpl_inner_tpl.id}());}"
+    assert pnl_inner_inner_tpl.js == "({G,C})=>{const {h,t,c,v,m}=G,{vv}=C,num=v(4),oo=v(),#{tpl_inner_tpl.id}=#{tpl_inner_tpl.js},#{tpl_obv.id}=#{tpl_obv.js},#{tpl_logic_mixed.id}=#{tpl_logic_mixed.js};return h('div',#{tpl_inner_tpl.id}());}"
     assert tpl_obv.js == "({num})=>h('.tpl_obv','num is:',num,h('.click',h('button',{boink:m(num,num=>num+1)},'num++'),h('button',{boink:m(num,num=>num-1)},'num--')))"
   end
 
@@ -279,21 +279,14 @@ defmodule CompilerTest do
     tpl_words = call_tpl(:tpl_words)
     tpl_select = call_tpl(:tpl_select)
     pnl_plugin_demo = call_tpl(:pnl_plugin_demo)
-    # ast = Templates.get_ast(TestTemplates, pnl_plugin_demo.id)
-    # vars = Logic.enum_logic(ast, [:Obv, :Condition], :name, :count)
-    # vars = Templates.get_vars(TestTemplates, pnl_plugin_demo.id)
-    # calls = Templates.get_calls(TestTemplates, pnl_plugin_demo.id)
-    # TODO: I need to make sure and for each call, also get those variables
-    # IO.puts "vars: #{inspect vars}"
-    # IO.puts "calls: #{inspect calls}"
     assert pnl_plugin_demo.js ==
       "({G,C})=>{" <>
-        "const {h,t,c,v}=G," <>
+        "const {h,t,c,v,m}=G," <>
           "lala=v(C.lala)," <>
-          "sum=c([lala,num],(lala,num)=>num+lala)," <>
           "num=v(11)," <>
-          "pressed=v(false)," <>
+          "sum=c([lala,num],(lala,num)=>num+lala)," <>
           "boinked=v(false)," <>
+          "pressed=v(false)," <>
           "w2=v()," <>
           "w1=v()," <>
           "selected=v()," <>
