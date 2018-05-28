@@ -241,10 +241,14 @@ defmodule TimeMachine.Compiler do
         J.variable_declarator(id(k), cvar)
       end)
     end
-    obv_init = Keyword.get(info, :init, [])
-    obv_decl = case length(obvs) do
-      0 -> []
-      _ -> Enum.map(obvs, fn k ->
+    obv_init = Keyword.get(info, :init, []) |> Enum.reverse()
+    obv_decl = case length(obv_init) do
+      0 -> obvs
+      _ ->
+        init_keys = Keyword.keys(obv_init)
+        init_keys ++ (obvs -- init_keys)
+    end
+    |> Enum.map(fn k ->
         init = Keyword.get(obv_init, k)
         type = Logic.type_of(init)
         init = cond do
@@ -257,7 +261,6 @@ defmodule TimeMachine.Compiler do
         end
         J.variable_declarator(id(k), init)
       end)
-    end
     # OPTIMISE: all templates with calls = 1 can be inlined
     mod = Keyword.get(info, :module)
     tpl_decl = Enum.map(Enum.reverse(calls), fn {k, _v} ->
